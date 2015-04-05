@@ -5,6 +5,8 @@ __module_description__ = 'chatsounds'
 
 import os, sys
 import urllib2, json
+import re
+
 import hexchat
 
 
@@ -12,6 +14,10 @@ HEXCHAT_CONFIG_DIR=hexchat.get_info('configdir')
 HEXCHAT_ADDONS_DIR=os.path.join(HEXCHAT_CONFIG_DIR,'addons')
 
 CONFIG_DIR=os.path.join(HEXCHAT_CONFIG_DIR, 'chatsounds')
+LISTS_DIR=os.path.join(CONFIG_DIR,'lists')
+
+if not os.path.exists(LISTS_DIR):
+	os.makedirs(LISTS_DIR)
 
 
 if CONFIG_DIR not in sys.path:
@@ -28,7 +34,7 @@ from vpk2reader import *
 CHATSOUNDS_DIR='D:\\music\\'
 CHATSOUNDS_REPO='https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/'
 
-
+LIST_REGEX='L\["(.+)"\]={{path="(.+)",length=(.+)}}'
 
 
 CLEAR='\017'
@@ -47,7 +53,12 @@ def warn(msg):
 	hexchat.prnt(BOLD + RED + msg)
 
 
-def getLinks(path):
+def merge(a,b):
+	c = a.copy()
+	c.update(b)
+	return c
+
+def getLists(path=None):
 	links = {}
 	http = urllib2.urlopen('{}{}'.format(CHATSOUNDS_REPO,path))
 	data = json.load(http)
@@ -55,11 +66,11 @@ def getLinks(path):
 
 	for a in data:
 		link = "{}/{}".format(path,a['name'])
+		hash = a['sha']
 		if a['type']=='file':
-			links[link] = a['download_url']
+			links[hash] = a['download_url']
 		elif a['type']=='dir':
-			for k,v in getLinks(link):
-				links[k] = v
+			links = merge(getLists(link),links)
 	
 	return links
 
@@ -91,19 +102,50 @@ def command_callback(word, word_eol, userdata):
 		for chan in channels:
 			BASS_ChannelStop(chan)
 		del channels[:]
-	elif name=='getlists':
-		
-		lists_nosend = getLinks('lists_nosend') # not vpk
-		lists_send = getLinks('lists_send') # vpk
-		# save these to file
-		
-		
-		info('now run /chatsounds downloadlists')
+		return hexchat.EAT_ALL
 	elif name=='downloadlists':
 		
-		# read lists file
+		info('Finding lists')
+		lists = merge(getLists('lists_nosend'),getLists('lists_send'))
+		
+		deleted=0
+		uptodate=0
+		updated=0
+		
+		for filename in os.listdir(LISTS_DIR):
+			if filename not in lists:
+				os.remove(os.path.join(LISTS_DIR,filename))
+				deleted+=1
+		
+		info('Downloading lists')
+		for hash,url in lists.iteritems():
+			filename = os.path.join(LISTS_DIR,hash)
+			if os.path.exists(filename):
+				uptodate+=1
+				continue
+			
+			http = urllib2.urlopen(url)
+			data = http.read()
+			http.close()
+			
+			items = re.findall(LIST_REGEX,data)
+			
+			with open(filename,'wb') as file:
+				for name,path,length in items:
+					file.write(
+						'\t'.join((name,path,length))
+					)
+					file.write('\n')
+				file.close()
+			
+			updated+=1
 		
 		
+		info('{} uptodate'.format(uptodate))
+		warn('{} deleted'.format(deleted))
+		success('{} updated'.format(updated))
+		
+		return hexchat.EAT_ALL
 		
 		
 	
@@ -151,3 +193,4 @@ else:
 	
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
+
