@@ -4,17 +4,25 @@ __module_version__ = '1'
 __module_description__ = 'chatsounds'
 
 import hexchat
-import os
+import os, sys
 
 from pybass import *
-from vpk2reader import *
-
 
 CHATSOUNDS_DIR='D:\\music\\'
 
 
 HEXCHAT_CONFIG_DIR=hexchat.get_info('configdir')
-CONFIG_DIR=os.path.join(CONFIG_DIR, 'chatsounds')
+HEXCHAT_ADDONS_DIR=os.path.join(HEXCHAT_CONFIG_DIR,'addons')
+
+CONFIG_DIR=os.path.join(HEXCHAT_CONFIG_DIR, 'chatsounds')
+
+
+if HEXCHAT_ADDONS_DIR not in sys.path:
+	sys.path.insert(0, HEXCHAT_ADDONS_DIR)
+
+from vpk2reader import *
+
+
 
 CLEAR='\017'
 BOLD='\002'
@@ -44,11 +52,8 @@ def getVpk(path):
 	return indexes[path]
 
 
-def loadVpks()
-	
-	
-	
-	
+def loadVpks():
+	return
 
 
 
@@ -61,11 +66,14 @@ def command_callback(word, word_eol, userdata):
 	if name=='sh':
 		for chan in channels:
 			BASS_ChannelStop(chan)
-		
 		del channels[:]
 	
 	
 	name = os.path.join(CHATSOUNDS_DIR,name)
+	
+	if not os.path.exists(name):
+		# check vpks
+		return hexchat.EAT_ALL
 	
 	chan = BASS_StreamCreateFile(False, name, 0, 0, 0)
 	channels.append(chan)
@@ -95,3 +103,20 @@ print('%s version %s loaded.' % (__module_name__,__module_version__))
 
 
 loadVpks()
+
+
+
+data = VpkIndex("D:\\vpk\\pak01_dir.vpk")
+print(data)
+
+
+if False:
+	chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
+	BASS_ChannelPlay(chan, False)
+
+
+
+
+
+
+

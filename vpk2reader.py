@@ -86,7 +86,7 @@ class VpkIndex():
 	def close(self):
 		self.file.close()
 	
-	def __str(self):
+	def __str__(self):
 		return '<VpkIndex: {}>'.format(self.path)
 	
 	
