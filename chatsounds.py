@@ -4,6 +4,7 @@ __module_version__ = '1'
 __module_description__ = 'chatsounds'
 
 import os, sys
+import urllib2, json
 import hexchat
 
 
@@ -25,6 +26,7 @@ from vpk2reader import *
 
 
 CHATSOUNDS_DIR='D:\\music\\'
+CHATSOUNDS_REPO='https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/'
 
 
 
@@ -43,6 +45,23 @@ def info(msg):
 	hexchat.prnt(BOLD + BLUE + msg)
 def warn(msg):
 	hexchat.prnt(BOLD + RED + msg)
+
+
+def getLinks(path):
+	links = {}
+	http = urllib2.urlopen('{}{}'.format(CHATSOUNDS_REPO,path))
+	data = json.load(http)
+	http.close()
+
+	for a in data:
+		link = "{}/{}".format(path,a['name'])
+		if a['type']=='file':
+			links[link] = a['download_url']
+		elif a['type']=='dir':
+			for k,v in getLinks(link):
+				links[k] = v
+	
+	return links
 
 
 
@@ -72,6 +91,21 @@ def command_callback(word, word_eol, userdata):
 		for chan in channels:
 			BASS_ChannelStop(chan)
 		del channels[:]
+	elif name=='getlists':
+		
+		lists_nosend = getLinks('lists_nosend') # not vpk
+		lists_send = getLinks('lists_send') # vpk
+		# save these to file
+		
+		
+		info('now run /chatsounds downloadlists')
+	elif name=='downloadlists':
+		
+		# read lists file
+		
+		
+		
+		
 	
 	
 	name = os.path.join(CHATSOUNDS_DIR,name)
@@ -117,13 +151,3 @@ else:
 	
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
-
-
-
-https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/lists_nosend/
-bunch of .lua
-
-https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/lists_send/
-bunch of folders -> bunch of .lua
-
-
