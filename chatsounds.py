@@ -34,6 +34,7 @@ from vpk2reader import *
 CHATSOUNDS_DIR='D:\\music\\'
 CHATSOUNDS_REPO='https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/'
 
+
 LIST_REGEX='L\["(.+)"\]={{path="(.+)",length=(.+)}}'
 
 
@@ -145,6 +146,9 @@ def command_callback(word, word_eol, userdata):
 		warn('{} deleted'.format(deleted))
 		success('{} updated'.format(updated))
 		
+		
+		loadLists()
+		
 		return hexchat.EAT_ALL
 		
 		
@@ -193,4 +197,47 @@ else:
 	
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
+
+
+if False:
+	pybass_path = os.path.join(CONFIG_DIR,'pybass.zip')
+	print('getting pybass')
+	http = urllib2.urlopen('http://sourceforge.net/projects/pybass/files/latest/download?source=files')
+	with open(pybass_path,'wb') as file:
+		file.write(http.read())
+		file.close()
+	http.close()
+
+
+	import zipfile
+	zip = zipfile.ZipFile(pybass_path,'r')
+
+	zip.extractall(CONFIG_DIR)
+	zip.close()
+	with open(os.path.join(CONFIG_DIR,'pybass','__init__.py'),'wb') as file:
+		file.write('from pybass import *\n') # compat
+		file.close()
+
+
+
+if False:
+	bass_path = os.path.join(CONFIG_DIR,'bass.zip')
+	print('getting bass')
+
+	http = urllib2.urlopen('http://www.un4seen.com/files/bass24.zip')
+	with open(bass_path,'wb') as file:
+		file.write(http.read())
+		file.close()
+	http.close()
+
+	import zipfile
+
+	zip = zipfile.ZipFile(bass_path,'r')
+	zip.extractall(os.path.join(CONFIG_DIR,'bass'),['bass.dll'])
+	zip.close()
+
+
+
+
+
 
