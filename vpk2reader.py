@@ -26,7 +26,6 @@ class VpkIndex():
 	files = {}
 	
 	def __init__(self, path):
-		print("loading",path)
 		
 		self.path = path
 		

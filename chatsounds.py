@@ -3,12 +3,8 @@ __module_author__ = 'SpiralP'
 __module_version__ = '1'
 __module_description__ = 'chatsounds'
 
-import hexchat
 import os, sys
-
-from pybass import *
-
-CHATSOUNDS_DIR='D:\\music\\'
+import hexchat
 
 
 HEXCHAT_CONFIG_DIR=hexchat.get_info('configdir')
@@ -17,10 +13,19 @@ HEXCHAT_ADDONS_DIR=os.path.join(HEXCHAT_CONFIG_DIR,'addons')
 CONFIG_DIR=os.path.join(HEXCHAT_CONFIG_DIR, 'chatsounds')
 
 
-if HEXCHAT_ADDONS_DIR not in sys.path:
-	sys.path.insert(0, HEXCHAT_ADDONS_DIR)
+if CONFIG_DIR not in sys.path:
+	sys.path.insert(0, CONFIG_DIR)
 
+os.environ['PATH'] = os.environ['PATH'] + ';' + CONFIG_DIR
+
+
+from pybass import *
 from vpk2reader import *
+
+
+
+CHATSOUNDS_DIR='D:\\music\\'
+
 
 
 
@@ -106,17 +111,15 @@ loadVpks()
 
 
 
-data = VpkIndex("D:\\vpk\\pak01_dir.vpk")
-print(data)
+index = VpkIndex("D:\\vpk\\pak01_dir.vpk")
+
+f = index.files['sound/thrusters/mh1.wav']
+	
+print(f)
 
 
-if False:
-	chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
-	BASS_ChannelPlay(chan, False)
-
-
-
-
-
+data = f.getData()
+chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
+BASS_ChannelPlay(chan, False)
 
 
