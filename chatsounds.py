@@ -14,9 +14,9 @@ CONFIG_DIR=os.path.join(HEXCHAT_CONFIG_DIR, 'chatsounds')
 
 
 if CONFIG_DIR not in sys.path:
-	sys.path.insert(0, CONFIG_DIR)
+	sys.path.insert(0, CONFIG_DIR) # for imports
 
-os.environ['PATH'] = os.environ['PATH'] + ';' + CONFIG_DIR
+os.environ['PATH'] = os.environ['PATH'] + ';' + CONFIG_DIR # for dlls
 
 
 from pybass import *
@@ -76,11 +76,23 @@ def command_callback(word, word_eol, userdata):
 	
 	name = os.path.join(CHATSOUNDS_DIR,name)
 	
+	"""
+	
+	get path from lists
+	check chatsounds if ^chatsounds/...
+		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
+	else vpks
+		data = f.getData()
+		chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
+	
+	"""
+	
+	
 	if not os.path.exists(name):
 		# check vpks
 		return hexchat.EAT_ALL
 	
-	chan = BASS_StreamCreateFile(False, name, 0, 0, 0)
+	
 	channels.append(chan)
 	
 	BASS_ChannelPlay(chan, False)
@@ -92,7 +104,7 @@ hexchat.hook_command('chatsounds',command_callback)
 
 
 def unload_callback(userdata):
-	print('unloading')
+	info('Unloading {}'.format(__module_name__))
 	BASS_Free()
 hexchat.hook_unload(unload_callback)
 
@@ -100,26 +112,18 @@ hexchat.hook_unload(unload_callback)
 if BASS_Init(-1, 44100, 0, 0, 0):
 	success("BASS loaded!")
 else:
-	warn("BASS COULD NOT BE LOADED!")
+	warn("BASS COULD NOT BE LOADED! ({})".format(get_error_description(BASS_ErrorGetCode())))
 
 	
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
 
 
-loadVpks()
 
+https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/lists_nosend/
+bunch of .lua
 
-
-index = VpkIndex("D:\\vpk\\pak01_dir.vpk")
-
-f = index.files['sound/thrusters/mh1.wav']
-	
-print(f)
-
-
-data = f.getData()
-chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
-BASS_ChannelPlay(chan, False)
+https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/lists_send/
+bunch of folders -> bunch of .lua
 
 
