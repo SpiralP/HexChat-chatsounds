@@ -2,7 +2,7 @@
 HexChat garrysmod-chatsounds
 ## Setup
 ```
-put chatsounds.py in %APPDATA%\HexChat\chatsounds
+put chatsounds.py in %APPDATA%\HexChat\addons
 load plugin in HexChat, listen to the voices
 ```
 
