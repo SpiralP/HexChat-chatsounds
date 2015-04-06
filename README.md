@@ -15,3 +15,4 @@ load plugin in HexChat, listen to the voices
 ## Thanks to
 * https://github.com/Metastruct/garrysmod-chatsounds
 * https://developer.valvesoftware.com/wiki/VPK_File_Format/vpk2_reader.py
+* https://github.com/SirAnthony/slpp
