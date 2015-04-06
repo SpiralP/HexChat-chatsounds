@@ -29,12 +29,10 @@ os.environ['PATH'] = os.environ['PATH'] + ';' + CONFIG_DIR # for dlls
 PYBASS_DOWNLOAD_URL='http://sourceforge.net/projects/pybass/files/latest/download?source=files'
 BASS_DOWNLOAD_URL='http://www.un4seen.com/files/bass24.zip'
 VPKREADER_URL='https://raw.githubusercontent.com/SpiralP/HexChat-chatsounds/master/vpk2reader.py'
+SLPP_URL='https://raw.githubusercontent.com/SpiralP/slpp/master/slpp.py'
 
 CHATSOUNDS_DIR='D:\\music\\'
 CHATSOUNDS_REPO='https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/'
-
-
-LIST_REGEX='L\["(.+)"\]={{path="(.+)",length=(.+)}}'
 
 
 CLEAR='\017'
@@ -51,6 +49,8 @@ def info(msg):
 	hexchat.prnt(BOLD + BLUE + msg)
 def warn(msg):
 	hexchat.prnt(BOLD + RED + msg)
+def printh(h,msg):
+	hexchat.prnt('['+GREEN+h+CLEAR+'] ' + BLUE + msg)
 
 def _exists(name):
 	return name in globals()
@@ -61,18 +61,24 @@ def merge(a,b):
 	return c
 
 
+CANT_LOAD='{} could not be imported, try running ' + BLUE + '/chatsounds setup'
 
 try:
 	from pybass import *
 except ImportError:
-	warn('pybass could not be imported, try running ' + BLUE + '/chatsounds setup')
+	warn(CANT_LOAD.format('pybass'))
 except WindowsError, e:
 	warn('bass.dll could not be loaded ({})'.format(e))
 
 try:
 	from vpk2reader import *
 except ImportError:
-	warn('vpk2reader could not be imported, try running ' + BLUE + '/chatsounds setup')
+	warn(CANT_LOAD.format('vpk2reader'))
+
+try:
+	from slpp import slpp as lua
+except ImportError:
+	warn(CANT_LOAD.format('slpp'))
 
 
 
@@ -87,29 +93,17 @@ class http():
 	
 	def __str__(self):
 		return str(self.web)
-	
-
-def getLists(path=None):
-	links = {}
-	with http('{}{}'.format(CHATSOUNDS_REPO,path)) as web:
-		data = json.load(web)
-
-	for a in data:
-		link = "{}/{}".format(path,a['name'])
-		hash = a['sha']
-		if a['type']=='file':
-			links[hash] = a['download_url']
-		elif a['type']=='dir':
-			links = merge(getLists(link),links)
-	
-	return links
 
 
-def setupPybass():
-	def msg(a):
-		hexchat.prnt('['+GREEN+'pybass'+CLEAR+'] ' + BLUE + a)
-	
+def setupPybass(force=False):
 	from zipfile import ZipFile
+	def msg(a):
+		printh('pybass',a)
+	
+	if os.path.exists(os.path.join(CONFIG_DIR,'pybass','__init__.py')) and not force:
+		msg('ALREADY EXISTS! (skipping)')
+		return False
+	
 	
 	archive_path = os.path.join(CONFIG_DIR,'pybass.zip')
 	
@@ -128,11 +122,19 @@ def setupPybass():
 	with open(os.path.join(CONFIG_DIR,'pybass','__init__.py'),'wb') as file:
 		file.write('from pybass import *\n') # compat
 	
-def setupBass():
-	def msg(a):
-		hexchat.prnt('['+GREEN+'bass'+CLEAR+'] ' + BLUE + a)
-	
+def setupBass(force=False):
 	from zipfile import ZipFile
+	def msg(a):
+		printh('bass',a)
+	
+	out_path = os.path.join(CONFIG_DIR,'bass.dll')
+	
+	if os.path.exists(out_path) and not force:
+		msg('ALREADY EXISTS! (skipping)')
+		return False
+	
+	if _exists('BASS_Free'):
+		BASS_Free() # attempt to unhook the .dll so we can touch it
 	
 	import platform
 	if platform.system()=='Darwin': # OSX
@@ -145,29 +147,66 @@ def setupBass():
 	
 	archive_path = os.path.join(CONFIG_DIR,'bass.zip')
 	
-	msg('downloading bass')
-	with http(BASS_DOWNLOAD_URL) as web:
-		with open(archive_path,'wb') as file:
+	try:
+		msg('downloading bass')
+		with http(BASS_DOWNLOAD_URL) as web:
+			with open(archive_path,'wb') as file:
+				file.write(web.read())
+		
+		
+		
+		msg('extracting')
+		with ZipFile(archive_path) as zip:
+			zip.extractall(os.path.join(CONFIG_DIR,'bass'),[x64 and 'x64/bass.dll' or 'bass.dll'])
+		
+		dll_path=x64 and os.path.join(CONFIG_DIR,'bass','x64','bass.dll') or os.path.join(CONFIG_DIR,'bass','bass.dll')
+		
+		msg('moving bass.dll')
+		if os.path.exists(out_path):
+			os.remove(out_path)
+		os.rename(dll_path,out_path)
+		
+	finally:
+		msg('cleaning up')
+		os.remove(archive_path)
+		
+		if x64:
+			if os.path.exists(os.path.join(CONFIG_DIR,'bass','x64','bass.dll')):
+				os.remove(os.path.join(CONFIG_DIR,'bass','x64','bass.dll'))
+			os.rmdir(os.path.join(CONFIG_DIR,'bass','x64'))
+		else:
+			if os.path.exists(os.path.join(CONFIG_DIR,'bass','bass.dll')):
+				os.remove(os.path.join(CONFIG_DIR,'bass','bass.dll'))
+		os.rmdir(os.path.join(CONFIG_DIR,'bass'))
+	
+	return
+
+def setupVpkReader(force=False):
+	out_path = os.path.join(CONFIG_DIR,'vpk2reader.py')
+	
+	if os.path.exists(out_path) and not force:
+		printh('vpk2reader.py','ALREADY EXISTS! (skipping)')
+		return False
+	
+	printh('vpk2reader.py','downloading')
+	with http(VPKREADER_URL) as web:
+		with open(out_path,'wb') as file:
 			file.write(web.read())
+	return
+
+def setupSlpp(force=False):
+	out_path = os.path.join(CONFIG_DIR,'slpp.py')
 	
+	if os.path.exists(out_path) and not force:
+		printh('slpp.py','ALREADY EXISTS! (skipping)')
+		return False
 	
-	
-	msg('extracting')
-	with ZipFile(archive_path) as zip:
-		zip.extractall(os.path.join(CONFIG_DIR,'bass'),[x64 and 'x64/bass.dll' or 'bass.dll'])
-	
-	dll_path=x64 and os.path.join(CONFIG_DIR,'bass','x64','bass.dll') or os.path.join(CONFIG_DIR,'bass','bass.dll')
-	
-	msg('moving bass.dll')
-	os.rename(dll_path,os.path.join(CONFIG_DIR,'bass.dll'))
-	
-	
-	msg('cleaning up')
-	os.remove(archive_path)
-	
-	if x64:
-		os.rmdir(os.path.join(CONFIG_DIR,'bass','x64'))
-	os.rmdir(os.path.join(CONFIG_DIR,'bass'))
+	printh('slpp.py','downloading')
+	with http(SLPP_URL) as web:
+		with open(out_path,'wb') as file:
+			file.write(web.read())
+	return
+
 
 
 
@@ -180,7 +219,57 @@ def getVpk(path):
 	return indexes[path]
 
 
-def loadVpks():
+x=0
+def getLists(path):
+	global x
+	links = {}
+	with http('{}{}'.format(CHATSOUNDS_REPO,path)) as web:
+		ddd = web.read()
+		with open(os.path.join(CONFIG_DIR,str(x)),'wb') as file:
+			file.write(ddd)
+			x=x+1
+		data = json.loads(ddd)
+
+	for a in data:
+		link = "{}/{}".format(path,a['name'])
+		hash = a['sha']
+		if a['type']=='file':
+			links[hash] = a['download_url']
+		elif a['type']=='dir':
+			links = merge(getLists(link),links)
+	
+	return links
+
+
+
+lists = {}
+def loadLists():
+	for filename in os.listdir(LISTS_DIR):
+		with open(os.path.join(LISTS_DIR,filename),'rb') as file:
+			data = file.read()
+		
+		decoded = lua.decode(data)
+		
+		for name,paths in decoded.iteritems():
+			for item in paths:
+				item['path']
+				item['length']
+	
+	return
+
+
+
+def listToFile(data,filename):
+	data = re.sub('c\.StartList\(".*?"\)',	'{',	data)
+	data = re.sub('c\.EndList\(\)',			'}',	data)
+	data = re.sub('L\["',					'["',	data)
+	
+	decoded = lua.decode(data)
+	encoded = lua.encode(decoded)
+	
+	with open(filename,'wb') as file:
+		file.write(encoded)
+	
 	return
 
 
@@ -196,22 +285,25 @@ def command_callback(word, word_eol, userdata):
 		del channels[:]
 		return hexchat.EAT_ALL
 	elif name=='setup':
+		force = False
+		if len(word)==3:
+			force=word[2]=='force'
 		
-		setupPybass()
-		setupBass()
 		
-		with http(VPKREADER_URL) as web:
-			with open(os.path.join(CONFIG_DIR,'vpk2reader.py'),'wb') as file:
-				file.write(web.read())
+		setupSlpp(force)
+		setupVpkReader(force)
+		setupPybass(force)
+		setupBass(force)
+
 		
 		success("Setup complete! Reload the plugin: "+BLUE+"/reload chatsounds.py")
 		
 		
 		return hexchat.EAT_ALL
-	elif name=='downloadlists':
+	elif name=='downloadlists': # TODO add a 'slow' and 'quick' mode where slow=use timer fast=freeze window
 		
 		info('Finding lists')
-		lists = merge(getLists('lists_nosend'),getLists('lists_send'))
+		lists = getLists('lists_nosend') # merge(getLists('lists_nosend'),getLists('lists_send'))
 		
 		deleted=0
 		uptodate=0
@@ -232,16 +324,7 @@ def command_callback(word, word_eol, userdata):
 			with http(url) as web:
 				data = web.read()
 			
-			items = re.findall(LIST_REGEX,data)
-			
-			with open(filename,'wb') as file:
-				for name,path,length in items:
-					file.write(
-						'\t'.join((name,path,length))
-					)
-					file.write('\n')
-				file.close()
-			
+			listToFile(data,filename)
 			updated+=1
 		
 		
@@ -253,7 +336,9 @@ def command_callback(word, word_eol, userdata):
 		loadLists()
 		
 		return hexchat.EAT_ALL
-		
+	elif name=='loadlists':
+		loadLists()
+		return hexchat.EAT_ALL
 		
 	
 	
@@ -304,5 +389,12 @@ else:
 	warn("BASS COULD NOT BE LOADED! ({})".format("library missing"))
 
 
+
+if _exists('lua'):
+	print'loadlists' # loadLists()
+
+
 print('%s version %s loaded.' % (__module_name__,__module_version__))
 
+
+## TABS DO FUN THINGS
