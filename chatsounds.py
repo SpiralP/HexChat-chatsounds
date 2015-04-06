@@ -387,6 +387,7 @@ def command_callback(word, word_eol, userdata):
 		deleted=0
 		uptodate=0
 		updated=0
+		errors=0
 		
 		for filename in os.listdir(LISTS_DIR):
 			if filename not in lists:
