@@ -404,7 +404,7 @@ def command_callback(word, word_eol, userdata):
 			try:
 				with http(url) as web:
 					data = web.read()
-			except urllib2.HTTPError, e:
+			except (urllib2.URLError, urllib2.HTTPError), e:
 				warn('{} failed ({})'.format(url,e))
 				errors+=1
 			
