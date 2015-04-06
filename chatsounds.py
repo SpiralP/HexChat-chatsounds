@@ -7,6 +7,7 @@ import os, sys
 import urllib2, json
 import re
 import random
+import hashlib
 
 import hexchat
 
@@ -63,17 +64,6 @@ def merge(a,b):
 	c = a.copy()
 	c.update(b)
 	return c
-
-
-
-"""
-a/b/c/d
-a/b/c d
-
-
-
-"""
-
 
 def goodpath(path,join=False):
 	if not join:
@@ -297,21 +287,27 @@ def loadLists():
 			data = file.read()
 		
 		decoded = lua.decode(data)
-		
-		for name,paths in decoded.iteritems():
-			for item in paths:
-				if name not in Lists:
-					Lists[name] = []
-				
-				list = Lists[name]
-				list.append(item)
+		try:
+			for name,paths in decoded.iteritems():
+				for item in paths:
+					if name not in Lists:
+						Lists[name] = []
+					
+					list = Lists[name]
+					list.append(item)
+		except TypeError, e:
+			warn('error loading list: {} ({})'.format(filename,e))
 	
 	return
 
 
 
 def listToFile(data,filename):
+	oldsize=len(data)
 	data = re.sub('c\.StartList\(".*?"\)',	'{',	data)
+	if len(data)==oldsize: # StartList not found
+		return False
+	
 	data = re.sub('c\.EndList\(\)',			'}',	data)
 	data = re.sub('L\["',					'["',	data)
 	
@@ -321,7 +317,7 @@ def listToFile(data,filename):
 	with open(filename,'wb') as file:
 		file.write(encoded)
 	
-	return
+	return True
 
 
 def randomSound(list):
@@ -418,7 +414,10 @@ def command_callback(word, word_eol, userdata):
 				warn('{} failed ({})'.format(url,e))
 				errors+=1
 			
-			listToFile(data,filename)
+			good = listToFile(data,filename)
+			if not good:
+				warn('not good: '+url)
+			
 			updated+=1
 		
 		
@@ -433,12 +432,18 @@ def command_callback(word, word_eol, userdata):
 		
 		return hexchat.EAT_ALL
 	elif name=='parselists':
-		path = os.path.join(paths['chatsounds'],'lua','chatsounds','lists_send')
+		lists = findFiles(os.path.join(paths['chatsounds'],'lua','chatsounds','lists_nosend'))+findFiles(os.path.join(paths['chatsounds'],'lua','chatsounds','lists_send'))
 		
-		files = findFiles(path) # TODO add send!
-		for filename in files:
-			with open(file,'rb') as file:
-				listToFile(,filename)
+		for filename in lists:
+			with open(filename,'rb') as file:
+				data = file.read()
+				
+				hash = hashlib.sha1(data).hexdigest()
+				file_path = os.path.join(LISTS_DIR,hash)
+				
+				good = listToFile(data,file_path)
+				if not good:
+					warn('not good: '+filename)
 		
 		
 		
