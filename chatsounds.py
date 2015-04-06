@@ -88,7 +88,13 @@ def goodpath(path,join=False):
 	
 	join.insert(0,split[1])
 	return goodpath(split[0],join)
-	
+
+def findFiles(path):
+	list = []
+	for root,dirs,files in os.walk(path):
+		for file in files:
+			list.append(os.path.join(root,file))
+	return list
 
 CANT_LOAD='{} could not be imported, try running ' + BLUE + '/chatsounds setup'
 
@@ -248,7 +254,7 @@ def getVpk(path):
 	return indexes[path]
 
 
-def getLists(path):
+def downloadLists(path):
 	links = {}
 	with http(CHATSOUNDS_REPO+path) as web:
 		data = json.load(web)
@@ -259,10 +265,14 @@ def getLists(path):
 		if a['type']=='file':
 			links[hash] = a['download_url']
 		elif a['type']=='dir':
-			links = merge(getLists(link),links)
+			links = merge(downloadLists(link),links)
 	
 	return links
 
+def getLists():
+	return
+	
+	
 
 def savePaths():
 	with open(PATHS_DIR,'wb') as file:
@@ -322,8 +332,8 @@ def playSound(path):
 	print('playing {}'.format(path))
 	
 	
-	path = os.path.join(paths['chatsounds'],goodpath(path))
-	
+	path = os.path.join(paths['chatsounds'],'sound',goodpath(path))
+	print(path)
 	chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
 	if not chan:
 		warn('BASS Error ({})'.format(get_error_description(BASS_ErrorGetCode())))
@@ -382,7 +392,7 @@ def command_callback(word, word_eol, userdata):
 	elif name=='downloadlists': # TODO add a 'slow' and 'quick' mode where slow=use timer fast=freeze window
 		
 		info('Finding lists')
-		lists = getLists('lists_nosend') # merge(getLists('lists_nosend'),getLists('lists_send'))
+		lists = downloadLists('lists_nosend') # merge(downloadLists('lists_nosend'),downloadLists('lists_send'))
 		
 		deleted=0
 		uptodate=0
@@ -420,6 +430,21 @@ def command_callback(word, word_eol, userdata):
 		
 		
 		loadLists()
+		
+		return hexchat.EAT_ALL
+	elif name=='parselists':
+		path = os.path.join(paths['chatsounds'],'lua','chatsounds','lists_send')
+		
+		files = findFiles(path) # TODO add send!
+		for filename in files:
+			with open(file,'rb') as file:
+				listToFile(,filename)
+		
+		
+		
+		
+		
+		
 		
 		return hexchat.EAT_ALL
 	elif name=='loadlists':
@@ -507,5 +532,3 @@ if _exists('lua'):
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
 
-
-## TABS DO FUN THINGS
