@@ -26,10 +26,9 @@ if CONFIG_DIR not in sys.path:
 os.environ['PATH'] = os.environ['PATH'] + ';' + CONFIG_DIR # for dlls
 
 
-from pybass import *
-from vpk2reader import *
-
-
+PYBASS_DOWNLOAD_URL='http://sourceforge.net/projects/pybass/files/latest/download?source=files'
+BASS_DOWNLOAD_URL='http://www.un4seen.com/files/bass24.zip'
+VPKREADER_URL='https://raw.githubusercontent.com/SpiralP/HexChat-chatsounds/master/vpk2reader.py'
 
 CHATSOUNDS_DIR='D:\\music\\'
 CHATSOUNDS_REPO='https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/'
@@ -53,17 +52,47 @@ def info(msg):
 def warn(msg):
 	hexchat.prnt(BOLD + RED + msg)
 
+def _exists(name):
+	return name in globals()
 
 def merge(a,b):
 	c = a.copy()
 	c.update(b)
 	return c
 
+
+
+try:
+	from pybass import *
+except ImportError:
+	warn('pybass could not be imported, try running ' + BLUE + '/chatsounds setup')
+except WindowsError, e:
+	warn('bass.dll could not be loaded ({})'.format(e))
+
+try:
+	from vpk2reader import *
+except ImportError:
+	warn('vpk2reader could not be imported, try running ' + BLUE + '/chatsounds setup')
+
+
+
+class http():
+	def __init__(self, url):
+		self.web = urllib2.urlopen(url)
+	
+	def __enter__(self):
+		return self.web
+	def __exit__(self, type, value, traceback):
+		self.web.close()
+	
+	def __str__(self):
+		return str(self.web)
+	
+
 def getLists(path=None):
 	links = {}
-	http = urllib2.urlopen('{}{}'.format(CHATSOUNDS_REPO,path))
-	data = json.load(http)
-	http.close()
+	with http('{}{}'.format(CHATSOUNDS_REPO,path)) as web:
+		data = json.load(web)
 
 	for a in data:
 		link = "{}/{}".format(path,a['name'])
@@ -76,6 +105,69 @@ def getLists(path=None):
 	return links
 
 
+def setupPybass():
+	def msg(a):
+		hexchat.prnt('['+GREEN+'pybass'+CLEAR+'] ' + BLUE + a)
+	
+	from zipfile import ZipFile
+	
+	archive_path = os.path.join(CONFIG_DIR,'pybass.zip')
+	
+	msg('downloading')
+	with http(PYBASS_DOWNLOAD_URL) as web:
+		with open(archive_path,'wb') as file:
+			file.write(web.read())
+	
+	msg('extracting')
+	with ZipFile(archive_path) as zip:
+		zip.extractall(CONFIG_DIR)
+	
+	msg('cleaning up')
+	os.remove(archive_path)
+	
+	with open(os.path.join(CONFIG_DIR,'pybass','__init__.py'),'wb') as file:
+		file.write('from pybass import *\n') # compat
+	
+def setupBass():
+	def msg(a):
+		hexchat.prnt('['+GREEN+'bass'+CLEAR+'] ' + BLUE + a)
+	
+	from zipfile import ZipFile
+	
+	import platform
+	if platform.system()=='Darwin': # OSX
+		x64 = sys.maxsize > 2**32
+	else: # all others
+		x64 = platform.architecture()[0]=='64bit'
+	
+	msg("Looks like you {} using a 64 bit system!".format(UNDERLINE+(x64 and 'are' or 'are NOT')+CLEAR+BLUE))
+	
+	
+	archive_path = os.path.join(CONFIG_DIR,'bass.zip')
+	
+	msg('downloading bass')
+	with http(BASS_DOWNLOAD_URL) as web:
+		with open(archive_path,'wb') as file:
+			file.write(web.read())
+	
+	
+	
+	msg('extracting')
+	with ZipFile(archive_path) as zip:
+		zip.extractall(os.path.join(CONFIG_DIR,'bass'),[x64 and 'x64/bass.dll' or 'bass.dll'])
+	
+	dll_path=x64 and os.path.join(CONFIG_DIR,'bass','x64','bass.dll') or os.path.join(CONFIG_DIR,'bass','bass.dll')
+	
+	msg('moving bass.dll')
+	os.rename(dll_path,os.path.join(CONFIG_DIR,'bass.dll'))
+	
+	
+	msg('cleaning up')
+	os.remove(archive_path)
+	
+	if x64:
+		os.rmdir(os.path.join(CONFIG_DIR,'bass','x64'))
+	os.rmdir(os.path.join(CONFIG_DIR,'bass'))
 
 
 
@@ -93,7 +185,6 @@ def loadVpks():
 
 
 
-
 channels = []
 def command_callback(word, word_eol, userdata):
 	name = word[1]
@@ -103,6 +194,19 @@ def command_callback(word, word_eol, userdata):
 		for chan in channels:
 			BASS_ChannelStop(chan)
 		del channels[:]
+		return hexchat.EAT_ALL
+	elif name=='setup':
+		
+		setupPybass()
+		setupBass()
+		
+		with http(VPKREADER_URL) as web:
+			with open(os.path.join(CONFIG_DIR,'vpk2reader.py'),'wb') as file:
+				file.write(web.read())
+		
+		success("Setup complete! Reload the plugin: "+BLUE+"/reload chatsounds.py")
+		
+		
 		return hexchat.EAT_ALL
 	elif name=='downloadlists':
 		
@@ -125,9 +229,8 @@ def command_callback(word, word_eol, userdata):
 				uptodate+=1
 				continue
 			
-			http = urllib2.urlopen(url)
-			data = http.read()
-			http.close()
+			with http(url) as web:
+				data = web.read()
 			
 			items = re.findall(LIST_REGEX,data)
 			
@@ -185,59 +288,21 @@ hexchat.hook_command('chatsounds',command_callback)
 
 def unload_callback(userdata):
 	info('Unloading {}'.format(__module_name__))
-	BASS_Free()
+	if _exists('BASS_Free'):
+		BASS_Free()
+	else:
+		warn("BASS doesn't exist to unload!")
+	
 hexchat.hook_unload(unload_callback)
 
-
-if BASS_Init(-1, 44100, 0, 0, 0):
-	success("BASS loaded!")
+if _exists('BASS_Init'):
+	if BASS_Init(-1, 44100, 0, 0, 0):
+		success("BASS loaded!")
+	else:
+		warn("BASS COULD NOT BE LOADED! ({})".format(get_error_description(BASS_ErrorGetCode())))
 else:
-	warn("BASS COULD NOT BE LOADED! ({})".format(get_error_description(BASS_ErrorGetCode())))
+	warn("BASS COULD NOT BE LOADED! ({})".format("library missing"))
 
-	
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
-
-
-if False:
-	pybass_path = os.path.join(CONFIG_DIR,'pybass.zip')
-	print('getting pybass')
-	http = urllib2.urlopen('http://sourceforge.net/projects/pybass/files/latest/download?source=files')
-	with open(pybass_path,'wb') as file:
-		file.write(http.read())
-		file.close()
-	http.close()
-
-
-	import zipfile
-	zip = zipfile.ZipFile(pybass_path,'r')
-
-	zip.extractall(CONFIG_DIR)
-	zip.close()
-	with open(os.path.join(CONFIG_DIR,'pybass','__init__.py'),'wb') as file:
-		file.write('from pybass import *\n') # compat
-		file.close()
-
-
-
-if False:
-	bass_path = os.path.join(CONFIG_DIR,'bass.zip')
-	print('getting bass')
-
-	http = urllib2.urlopen('http://www.un4seen.com/files/bass24.zip')
-	with open(bass_path,'wb') as file:
-		file.write(http.read())
-		file.close()
-	http.close()
-
-	import zipfile
-
-	zip = zipfile.ZipFile(bass_path,'r')
-	zip.extractall(os.path.join(CONFIG_DIR,'bass'),['bass.dll'])
-	zip.close()
-
-
-
-
-
 
