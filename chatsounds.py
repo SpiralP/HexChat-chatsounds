@@ -140,7 +140,7 @@ def setupBass():
 	else: # all others
 		x64 = platform.architecture()[0]=='64bit'
 	
-	msg("Looks like you {} using a 64 bit system!".format(UNDERLINE+(x64 and 'are' or 'are NOT')+CLEAR+BLUE))
+	msg("Looks like you {} using a 64 bit python!".format(UNDERLINE+(x64 and 'are' or 'are NOT')+CLEAR+BLUE))
 	
 	
 	archive_path = os.path.join(CONFIG_DIR,'bass.zip')
