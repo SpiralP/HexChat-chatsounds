@@ -6,6 +6,7 @@ __module_description__ = 'chatsounds'
 import os, sys
 import urllib2, json
 import re
+import random
 
 import hexchat
 
@@ -15,6 +16,7 @@ HEXCHAT_ADDONS_DIR=os.path.join(HEXCHAT_CONFIG_DIR,'addons')
 
 CONFIG_DIR=os.path.join(HEXCHAT_CONFIG_DIR, 'chatsounds')
 LISTS_DIR=os.path.join(CONFIG_DIR,'lists')
+PATHS_DIR=os.path.join(CONFIG_DIR,'paths.lua')
 
 if not os.path.exists(LISTS_DIR):
 	os.makedirs(LISTS_DIR)
@@ -31,8 +33,10 @@ BASS_DOWNLOAD_URL='http://www.un4seen.com/files/bass24.zip'
 VPKREADER_URL='https://raw.githubusercontent.com/SpiralP/HexChat-chatsounds/master/vpk2reader.py'
 SLPP_URL='https://raw.githubusercontent.com/SpiralP/slpp/master/slpp.py'
 
-CHATSOUNDS_DIR='D:\\music\\'
 CHATSOUNDS_REPO='https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/'
+
+paths = {'vpk':'','chatsounds':''}
+
 
 
 CLEAR='\017'
@@ -60,6 +64,31 @@ def merge(a,b):
 	c.update(b)
 	return c
 
+
+
+"""
+a/b/c/d
+a/b/c d
+
+
+
+"""
+
+
+def goodpath(path,join=False):
+	if not join:
+		join = []
+	if path!='' and path[-1]=='/':#  or path[-1]=='\\':
+		path = path[:-1]
+	
+	split = os.path.split(path)
+	
+	if split[1]=='':
+		return os.path.join(split[0],*join)
+	
+	join.insert(0,split[1])
+	return goodpath(split[0],join)
+	
 
 CANT_LOAD='{} could not be imported, try running ' + BLUE + '/chatsounds setup'
 
@@ -219,16 +248,10 @@ def getVpk(path):
 	return indexes[path]
 
 
-x=0
 def getLists(path):
-	global x
 	links = {}
-	with http('{}{}'.format(CHATSOUNDS_REPO,path)) as web:
-		ddd = web.read()
-		with open(os.path.join(CONFIG_DIR,str(x)),'wb') as file:
-			file.write(ddd)
-			x=x+1
-		data = json.loads(ddd)
+	with http(CHATSOUNDS_REPO+path) as web:
+		data = json.load(web)
 
 	for a in data:
 		link = "{}/{}".format(path,a['name'])
@@ -241,8 +264,23 @@ def getLists(path):
 	return links
 
 
+def savePaths():
+	with open(PATHS_DIR,'wb') as file:
+		file.write(lua.encode(paths))
 
-lists = {}
+def loadPaths(): # TODO say if path not found!
+	global paths
+	try:
+		with open(PATHS_DIR,'rb') as file:
+			paths = lua.decode(file.read())
+	except IOError, e:
+		pass
+	
+	
+	return paths
+
+
+Lists = {}
 def loadLists():
 	for filename in os.listdir(LISTS_DIR):
 		with open(os.path.join(LISTS_DIR,filename),'rb') as file:
@@ -252,8 +290,11 @@ def loadLists():
 		
 		for name,paths in decoded.iteritems():
 			for item in paths:
-				item['path']
-				item['length']
+				if name not in Lists:
+					Lists[name] = []
+				
+				list = Lists[name]
+				list.append(item)
 	
 	return
 
@@ -273,8 +314,46 @@ def listToFile(data,filename):
 	return
 
 
+def randomSound(list):
+	return random.choice(list)
 
 channels = []
+def playSound(path):
+	print('playing {}'.format(path))
+	
+	
+	path = os.path.join(paths['chatsounds'],goodpath(path))
+	
+	chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
+	if not chan:
+		warn('BASS Error ({})'.format(get_error_description(BASS_ErrorGetCode())))
+		return False
+	
+	channels.append(chan)
+	BASS_ChannelPlay(chan, False)
+	
+	
+	
+	"""
+	get path from lists
+	check chatsounds if ^chatsounds/... (or check if path exists?)
+		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
+	else vpks
+		data = f.getData()
+		chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
+	
+	channels.append(chan)
+	
+	BASS_ChannelPlay(chan, False)
+	"""
+	
+	
+	
+
+
+
+
+
 def command_callback(word, word_eol, userdata):
 	name = word[1]
 	
@@ -339,31 +418,52 @@ def command_callback(word, word_eol, userdata):
 	elif name=='loadlists':
 		loadLists()
 		return hexchat.EAT_ALL
+	elif name=='paths':
+		mode = 'show'
+		if len(word)>2:
+			mode = word[2]
 		
-	
-	
-	name = os.path.join(CHATSOUNDS_DIR,name)
-	
-	"""
-	
-	get path from lists
-	check chatsounds if ^chatsounds/...
-		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
-	else vpks
-		data = f.getData()
-		chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
-	
-	"""
-	
-	
-	if not os.path.exists(name):
-		# check vpks
+		if mode=='set': # TODO more than one path each!
+			if len(word)==5:
+				
+				key = word[3]
+				value = word[4]
+				
+				if key=='vpk':
+					paths['vpk'] = value
+					success('vpk set')
+				elif key=='chatsounds':
+					paths['chatsounds'] = value
+					success('chatsounds set')
+				else:
+					warn('wrong key (vpk|chatsounds)')
+					return hexchat.EAT_ALL
+				
+				savePaths()
+			else:
+				warn('wrong syntax: {}'.format(BLUE+'/chatsounds paths set (vpk|chatsounds) path/to/folder'))
+				return hexchat.EAT_ALL
+			
+			
+			
+			
+			
+		info('vpk: {}'.format(UNDERLINE+paths['vpk']))
+		info('chatsounds: {}'.format(UNDERLINE+paths['chatsounds']))
+		
 		return hexchat.EAT_ALL
 	
 	
-	channels.append(chan)
+	try:
+		list = Lists[name]
+	except KeyError:
+		warn('{} not found in list'.format(name))
+		return hexchat.EAT_ALL
 	
-	BASS_ChannelPlay(chan, False)
+	item = randomSound(list)
+	
+	playSound(item['path']) # ,item['length'])
+	
 	
 	return hexchat.EAT_ALL
 hexchat.hook_command('chatsounds',command_callback)
@@ -380,6 +480,10 @@ def unload_callback(userdata):
 	
 hexchat.hook_unload(unload_callback)
 
+
+loadPaths()
+
+
 if _exists('BASS_Init'):
 	if BASS_Init(-1, 44100, 0, 0, 0):
 		success("BASS loaded!")
@@ -391,7 +495,7 @@ else:
 
 
 if _exists('lua'):
-	print'loadlists' # loadLists()
+	loadLists()
 
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
