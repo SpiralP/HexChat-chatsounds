@@ -400,8 +400,12 @@ def command_callback(word, word_eol, userdata):
 				uptodate+=1
 				continue
 			
-			with http(url) as web:
-				data = web.read()
+			try:
+				with http(url) as web:
+					data = web.read()
+			except urllib2.HTTPError, e:
+				warn('{} failed ({})'.format(url,e))
+				errors+=1
 			
 			listToFile(data,filename)
 			updated+=1
@@ -410,6 +414,8 @@ def command_callback(word, word_eol, userdata):
 		info('{} uptodate'.format(uptodate))
 		warn('{} deleted'.format(deleted))
 		success('{} updated'.format(updated))
+		if errors>0:
+			warn('{} ERRORS!'.format(UNDERLINE+errors))
 		
 		
 		loadLists()
