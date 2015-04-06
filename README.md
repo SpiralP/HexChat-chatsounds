@@ -7,7 +7,6 @@ load plugin in HexChat, listen to the voices
 ```
 
 ## Uses
-### Windows
 * Python2.7.*: https://www.python.org/downloads/
 * HexChat with Python2.7 Interface: https://hexchat.github.io/
 * pybass: http://pybass.sf.net
