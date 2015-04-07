@@ -1,3 +1,5 @@
+# TODO make proper exceptions instead of just printing!
+
 import os, struct, binascii
 
 def get_int4(file):

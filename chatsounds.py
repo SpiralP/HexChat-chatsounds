@@ -17,7 +17,7 @@ HEXCHAT_ADDONS_DIR=os.path.join(HEXCHAT_CONFIG_DIR,'addons')
 
 CONFIG_DIR=os.path.join(HEXCHAT_CONFIG_DIR, 'chatsounds')
 LISTS_DIR=os.path.join(CONFIG_DIR,'lists')
-PATHS_DIR=os.path.join(CONFIG_DIR,'paths.lua')
+CONFIG_FILE=os.path.join(CONFIG_DIR,'config.lua')
 
 if not os.path.exists(LISTS_DIR):
 	os.makedirs(LISTS_DIR)
@@ -36,7 +36,16 @@ SLPP_URL='https://raw.githubusercontent.com/SpiralP/slpp/master/slpp.py'
 
 CHATSOUNDS_REPO='https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/'
 
-PATHS = {'vpk':[''],'chatsounds':''}
+# don't edit these here~
+PATHS = {
+	"vpk": [""],		# paths for vpks
+	"chatsounds": "",	# path to chatsounds local repo
+}
+CONFIG = {
+	"paths": PATHS,
+	"ignore": [],		# ignore list
+	"focusOnly": True,	# only play sounds when window is on top
+}
 
 
 
@@ -85,6 +94,10 @@ def findFiles(path):
 		for file in files:
 			list.append(os.path.join(root,file))
 	return list
+
+def getChannel():
+	return hexchat.get_info('channel')
+
 
 CANT_LOAD='{} could not be imported, try running ' + BLUE + '/chatsounds setup'
 
@@ -260,38 +273,23 @@ def findVpks():
 					del VpkIndexes[path]
 				else:
 					success(str(vpk)+' was found useful')
+	return
 
 
 
-def downloadLists(path):
-	links = {}
-	with http(CHATSOUNDS_REPO+path) as web:
-		data = json.load(web)
+def saveConfig():
+	with open(CONFIG_FILE,'wb') as file:
+		file.write(lua.encode(CONFIG))
 
-	for a in data:
-		link = "{}/{}".format(path,a['name'])
-		hash = a['sha']
-		if a['type']=='file':
-			links[hash] = a['download_url']
-		elif a['type']=='dir':
-			links = merge(downloadLists(link),links)
-	
-	return links
-
-
-def savePaths():
-	with open(PATHS_DIR,'wb') as file:
-		file.write(lua.encode(PATHS))
-
-def loadPaths(): # TODO say if path not found!
-	global PATHS
+def loadConfig(): # TODO say if path not found!
+	global CONFIG, PATHS
 	try:
-		with open(PATHS_DIR,'rb') as file:
-			PATHS = lua.decode(file.read())
+		with open(CONFIG_FILE,'rb') as file:
+			CONFIG = lua.decode(file.read())
 	except IOError, e:
 		pass
 	
-	
+	PATHS = CONFIG['paths']
 	for key,value in PATHS.iteritems():
 		if type(value) is list:
 			for path in value:
@@ -302,7 +300,7 @@ def loadPaths(): # TODO say if path not found!
 				warn('"{}" is not a valid folder! (paths {})'.format(value,key))
 	
 	
-	return PATHS
+	return CONFIG
 
 
 Lists = {}
@@ -325,8 +323,6 @@ def loadLists():
 	
 	return
 
-
-
 def listToFile(data,filename):
 	oldsize=len(data)
 	data = re.sub('c\.StartList\(".*?"\)',	'{',	data)
@@ -344,48 +340,20 @@ def listToFile(data,filename):
 	
 	return True
 
+def downloadLists(path):
+	links = {}
+	with http(CHATSOUNDS_REPO+path) as web:
+		data = json.load(web)
 
-def randomSound(list):
-	return random.choice(list)
-
-channels = []
-def playSound(_path):
-	_path = 'sound/'+_path
+	for a in data:
+		link = "{}/{}".format(path,a['name'])
+		hash = a['sha']
+		if a['type']=='file':
+			links[hash] = a['download_url']
+		elif a['type']=='dir':
+			links = merge(downloadLists(link),links)
 	
-	print('playing {}'.format(_path))
-	
-	chan = None
-	
-	path = os.path.join(PATHS['chatsounds'],goodpath(_path))
-	if os.path.exists(path): # chatsounds
-		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
-	else: # try vpk search
-		
-		for _,vpk in VpkIndexes.iteritems():
-			if _path in vpk.files:
-				file = vpk.files[_path]
-				
-				data = file.getData()
-				chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
-				del data
-				
-				break
-	
-	if chan is None:
-		warn('{} file not found'.format(_path))
-		return False
-	
-	if not chan:
-		warn('BASS Error ({})'.format(get_error_description(BASS_ErrorGetCode())))
-		return False
-	
-	channels.append(chan)
-	BASS_ChannelPlay(chan, False)
-	
-	return True
-
-
-
+	return links
 
 def updateLists():
 	
@@ -481,7 +449,71 @@ def updateLists():
 	return True
 
 
+
+channels = []
+def playSound(_path):
+	_path = 'sound/'+_path
+	
+	print('playing {}'.format(_path))
+	
+	chan = None
+	
+	path = os.path.join(PATHS['chatsounds'],goodpath(_path))
+	if os.path.exists(path): # chatsounds
+		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
+	else: # try vpk search
+		
+		for _,vpk in VpkIndexes.iteritems():
+			if _path in vpk.files:
+				file = vpk.files[_path]
+				
+				data = file.getData()
+				chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
+				del data
+				
+				break
+	
+	if chan is None:
+		warn('{} file not found'.format(_path))
+		return False
+	
+	if not chan:
+		warn('BASS Error ({})'.format(get_error_description(BASS_ErrorGetCode())))
+		return False
+	
+	channels.append(chan)
+	BASS_ChannelPlay(chan, False)
+	
+	return True
+
+def randomSound(list):
+	return random.choice(list)
+
+def chatsound(name):
+	
+	if name=='sh':
+		for chan in channels:
+			BASS_ChannelStop(chan)
+		del channels[:]
+		return True
+	
+	
+	try:
+		_list = Lists[name]
+	except KeyError:
+		warn('{} not found in list'.format(name))
+		return False
+	
+	item = randomSound(_list)
+	
+	return playSound(item['path']) # ,item['length'])
+
+
+
+
+
 def load():
+	loadConfig()
 	
 	if _exists('BASS_Init'):
 		if BASS_Init(-1, 44100, 0, 0, 0):
@@ -500,16 +532,13 @@ def load():
 
 
 
+	
+
 def command_callback(word, word_eol, userdata):
 	name = word[1]
 	
 	
-	if name=='sh':
-		for chan in channels:
-			BASS_ChannelStop(chan)
-		del channels[:]
-		return hexchat.EAT_ALL
-	elif name=='setup':
+	if name=='setup':
 		force = False
 		if len(word)==3:
 			force=word[2]=='force'
@@ -529,7 +558,6 @@ def command_callback(word, word_eol, userdata):
 		updateLists()
 		return hexchat.EAT_ALL
 	elif name=='load':
-		loadPaths()
 		load()
 		return hexchat.EAT_ALL
 	elif name=='paths':
@@ -594,8 +622,8 @@ def command_callback(word, word_eol, userdata):
 						return hexchat.EAT_ALL
 				
 				
-				savePaths()
-				loadPaths()
+				saveConfig()
+				loadConfig()
 		
 		
 		info('vpk: {}'.format('['+UNDERLINE+(', '.join(PATHS['vpk']))+CLEAR+BOLD+BLUE+']'))
@@ -605,20 +633,35 @@ def command_callback(word, word_eol, userdata):
 		return hexchat.EAT_ALL
 	
 	
-	try:
-		_list = Lists[name]
-	except KeyError:
-		warn('{} not found in list'.format(name))
-		return hexchat.EAT_ALL
 	
-	item = randomSound(_list)
-	
-	playSound(item['path']) # ,item['length'])
+	chatsound(word_eol[1])
 	
 	
 	return hexchat.EAT_ALL
 hexchat.hook_command('chatsounds',command_callback)
 
+
+def message_callback(word, word_eol, userdata):
+	who = word[0]
+	msg = word[1]
+	
+	chan = getChannel()
+	
+	if who in CONFIG['ignore']: # block them!!!!
+		return
+	
+	if CONFIG['focusOnly'] and not hexchat.get_info('win_status')=='active':
+		return
+	
+	
+	chatsound(msg)
+	
+	
+	
+	
+	return
+hexchat.hook_print('Private Message to Dialog',message_callback)
+hexchat.hook_print('Private Message',message_callback)
 
 
 
@@ -628,11 +671,10 @@ def unload_callback(userdata):
 		BASS_Free()
 	else:
 		warn("BASS doesn't exist to unload!")
-	
 hexchat.hook_unload(unload_callback)
 
 if _exists('lua'):
-	loadPaths()
+	loadConfig()
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
 
