@@ -23,7 +23,7 @@ class VpkIndex():
 	unknown3 = None
 	unknown4 = None
 	
-	files = {}
+	files = None
 	
 	def __init__(self, path):
 		
@@ -39,6 +39,7 @@ class VpkIndex():
 		self.unknown3 = get_int4(self.file)
 		self.unknown4 = get_int4(self.file)
 		
+		self.files = {}
 		self.Process()
 		
 		
