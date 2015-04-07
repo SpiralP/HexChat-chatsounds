@@ -535,6 +535,8 @@ def load():
 	
 
 def command_callback(word, word_eol, userdata):
+	info('->'+word_eol[0])
+	
 	name = word[1]
 	
 	
