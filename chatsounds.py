@@ -48,6 +48,7 @@ CONFIG = {
 	"volume": 0.1,		# volume
 }
 
+ENABLED = False
 
 
 CLEAR='\017'
@@ -540,6 +541,9 @@ def load():
 	
 	findVpks()
 	
+	global ENABLED
+	ENABLED = True
+	
 	return
 
 
@@ -555,6 +559,7 @@ def command_callback(word, word_eol, userdata):
 		print('edit paths: ' + BLUE + '/chatsounds paths [key] [mode] [value]')
 		print('update lists: ' + BLUE + '/chatsounds update')
 		print('load: ' + BLUE + '/chatsounds load')
+		print('unload: ' + BLUE + '/chatsounds unload')
 		
 		
 		return hexchat.EAT_ALL
@@ -584,6 +589,9 @@ def command_callback(word, word_eol, userdata):
 		return hexchat.EAT_ALL
 	elif name=='load':
 		load()
+		return hexchat.EAT_ALL
+	elif name=='unload':
+		unload_callback(None)
 		return hexchat.EAT_ALL
 	elif name=='paths' or name=='path':
 		
@@ -715,6 +723,9 @@ hexchat.hook_command('chatsounds',command_callback)
 
 
 def message_callback(word, word_eol, userdata):
+	if not ENABLED:
+		return
+	
 	who = word[0]
 	msg = word[1]
 	
@@ -741,6 +752,10 @@ hexchat.hook_print('Your Message',message_callback)
 
 def unload_callback(userdata):
 	info('Unloading {}'.format(__module_name__))
+	
+	global ENABLED
+	ENABLED = False
+	
 	if _exists('BASS_Free'):
 		BASS_Free()
 	else:
