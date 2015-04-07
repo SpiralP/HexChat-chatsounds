@@ -523,6 +523,8 @@ def command_callback(word, word_eol, userdata):
 					
 					if mode=='set':
 						PATHS[key]=path
+						if os.path.isdir(path):
+							success('{} is a valid folder!'.format(path))
 						
 					else:
 						warn('invalid mode!')
@@ -543,6 +545,9 @@ def command_callback(word, word_eol, userdata):
 						else:
 							PATHS[key].append(path)
 						
+						if os.path.isdir(path):
+							success('{} is a valid folder!'.format(path))
+						
 					elif mode=='del' or mode=='delete' or mode=='remove': # if first and only element=='' then set that element
 						if path not in PATHS[key]:
 							warn('{} is not in {}!'.format(path,key))
@@ -561,35 +566,11 @@ def command_callback(word, word_eol, userdata):
 				
 				savePaths()
 				loadPaths()
-				
-				
-		"""
-		if mode=='set':
-			if len(word)==5:
-				
-				key = word[3]
-				value = word[4]
-				
-				if key=='vpk':
-					paths['vpk'] = value
-					success('vpk set')
-				elif key=='chatsounds':
-					paths['chatsounds'] = value
-					success('chatsounds set')
-				else:
-					warn('wrong key (vpk|chatsounds)')
-					return hexchat.EAT_ALL
-				
-				savePaths()
-			else:
-				warn('wrong syntax: {}'.format(BLUE+'/chatsounds paths set (vpk|chatsounds) path/to/folder'))
-				return hexchat.EAT_ALL
-			
-			"""
-			
-			
+		
+		
 		info('vpk: {}'.format('['+UNDERLINE+(', '.join(PATHS['vpk']))+CLEAR+BOLD+BLUE+']'))
 		info('chatsounds: {}'.format(UNDERLINE+PATHS['chatsounds']))
+		# TODO maybe add red/green colored paths for good/bad
 		
 		return hexchat.EAT_ALL
 	
@@ -620,7 +601,8 @@ def unload_callback(userdata):
 	
 hexchat.hook_unload(unload_callback)
 
-loadPaths()
+if _exists('lua'):
+	loadPaths()
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
 
