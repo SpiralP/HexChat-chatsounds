@@ -4,6 +4,12 @@ HexChat garrysmod-chatsounds
 ```
 put chatsounds.py in %APPDATA%\HexChat\addons
 load plugin in HexChat, listen to the voices
+once set up:
+  /chatsounds paths chatsounds set "C:\path\to\chatsounds\repo"
+  /chatsounds paths vpk add "C:\path\to\Half-Life2\hl2"
+  /chatsounds paths vpk add "C:\path\to\other\vpks"
+/chatsounds update
+/chatsounds load
 ```
 
 ## Uses
