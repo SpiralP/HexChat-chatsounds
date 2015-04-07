@@ -260,6 +260,8 @@ def getVpk(path):
 
 def findVpks():
 	for dir in PATHS['vpk']:
+		if dir=='':
+			continue
 		for filename in os.listdir(dir):
 			if filename.find('_dir.vpk')!=-1:
 				path = os.path.join(dir,filename)
