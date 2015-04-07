@@ -45,6 +45,7 @@ CONFIG = {
 	"paths": PATHS,
 	"ignore": [],		# ignore list
 	"focusOnly": True,	# only play sounds when window is on top
+	"volume": 0.1,		# volume
 }
 
 
@@ -285,7 +286,11 @@ def loadConfig(): # TODO say if path not found!
 	global CONFIG, PATHS
 	try:
 		with open(CONFIG_FILE,'rb') as file:
+			old = CONFIG
 			CONFIG = lua.decode(file.read())
+			for k,v in old.iteritems():
+				if k not in CONFIG:
+					CONFIG[k] = v
 	except IOError, e:
 		pass
 	
@@ -333,7 +338,7 @@ def listToFile(data,filename):
 	data = re.sub('L\["',					'["',	data)
 	
 	decoded = lua.decode(data)
-	encoded = lua.encode(decoded)
+	encoded = lua.encode(decoded) # TODO don't use this format for saving them!!!
 	
 	with open(filename,'wb') as file:
 		file.write(encoded)
@@ -457,6 +462,7 @@ def playSound(_path):
 	print('playing {}'.format(_path))
 	
 	chan = None
+	mod_volume = 0
 	
 	path = os.path.join(PATHS['chatsounds'],goodpath(_path))
 	if os.path.exists(path): # chatsounds
@@ -482,6 +488,7 @@ def playSound(_path):
 		return False
 	
 	channels.append(chan)
+	BASS_ChannelSetAttribute(chan,BASS_ATTRIB_VOL,CONFIG['volume']+mod_volume)
 	BASS_ChannelPlay(chan, False)
 	
 	return True
@@ -513,6 +520,9 @@ def chatsound(name):
 
 
 def load():
+	
+	unload_callback(None) # hacks
+	
 	loadConfig()
 	
 	if _exists('BASS_Init'):
@@ -529,13 +539,14 @@ def load():
 	
 	
 	findVpks()
+	
+	return
 
 
 
 	
 
 def command_callback(word, word_eol, userdata):
-	info('->'+word_eol[0])
 	
 	name = word[1]
 	
@@ -633,6 +644,54 @@ def command_callback(word, word_eol, userdata):
 		# TODO maybe add red/green colored paths for good/bad
 		
 		return hexchat.EAT_ALL
+	elif name=='config':
+		if len(word)==2: # chatsounds config
+			
+			for k,v in CONFIG.iteritems():
+				if type(v) is list or type(v) is dict: continue
+				print('{} = {}'.format(BLUE+str(k)+CLEAR,BLUE+str(v)+CLEAR))
+			
+			
+			return hexchat.EAT_ALL
+		
+		
+		if len(word)!=4:
+			warn('incorrect usage: {}'.format(BLUE+'/chatsounds config (key) (value)'))
+			return hexchat.EAT_ALL
+		
+		key = word[2]
+		if not key in CONFIG:
+			warn('{} not found in config!'.format(key))
+			return hexchat.EAT_ALL
+		
+		value = word[3]
+		
+		
+		
+		oldvalue = CONFIG[key]
+		typ = type(oldvalue)
+		
+		
+		if typ is str:
+			CONFIG[key] = str(value)
+		elif typ is float:
+			CONFIG[key] = float(value)
+		elif typ is int:
+			CONFIG[key] = int(value)
+		elif typ is bool:
+			CONFIG[key] = (value.lower()=='yes' or value.lower()=='true')
+		
+		else:
+			warn('unknown value type')
+			return hexchat.EAT_ALL
+		
+		info('CONFIG.{}: {} -> {}'.format(key,oldvalue,CONFIG[key]))
+		
+		
+		
+		saveConfig()
+		
+		return hexchat.EAT_ALL
 	
 	
 	
@@ -664,6 +723,7 @@ def message_callback(word, word_eol, userdata):
 	return
 hexchat.hook_print('Private Message to Dialog',message_callback)
 hexchat.hook_print('Private Message',message_callback)
+hexchat.hook_print('Your Message',message_callback)
 
 
 
