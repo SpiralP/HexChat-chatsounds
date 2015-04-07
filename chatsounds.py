@@ -36,7 +36,7 @@ SLPP_URL='https://raw.githubusercontent.com/SpiralP/slpp/master/slpp.py'
 
 CHATSOUNDS_REPO='https://api.github.com/repos/Metastruct/garrysmod-chatsounds/contents/lua/chatsounds/'
 
-paths = {'vpk':'','chatsounds':''}
+PATHS = {'vpk':[''],'chatsounds':''}
 
 
 
@@ -259,25 +259,31 @@ def downloadLists(path):
 	
 	return links
 
-def getLists():
-	return
-	
-	
 
 def savePaths():
 	with open(PATHS_DIR,'wb') as file:
-		file.write(lua.encode(paths))
+		file.write(lua.encode(PATHS))
 
 def loadPaths(): # TODO say if path not found!
-	global paths
+	global PATHS
 	try:
 		with open(PATHS_DIR,'rb') as file:
-			paths = lua.decode(file.read())
+			PATHS = lua.decode(file.read())
 	except IOError, e:
 		pass
 	
 	
-	return paths
+	for key,value in PATHS.iteritems():
+		if type(value) is list:
+			for path in value:
+				if not os.path.isdir(path):
+					warn('"{}" is not a valid folder! (paths {})'.format(path,key))
+		elif type(value) is str:
+			if not os.path.isdir(value):
+				warn('"{}" is not a valid folder! (paths {})'.format(value,key))
+	
+	
+	return PATHS
 
 
 Lists = {}
@@ -328,7 +334,7 @@ def playSound(path):
 	print('playing {}'.format(path))
 	
 	
-	path = os.path.join(paths['chatsounds'],'sound',goodpath(path))
+	path = os.path.join(PATHS['chatsounds'],'sound',goodpath(path))
 	print(path)
 	chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
 	if not chan:
@@ -353,10 +359,114 @@ def playSound(path):
 	BASS_ChannelPlay(chan, False)
 	"""
 	
+
+def updateLists():
+	
+	deleted=0
+	uptodate=0
+	updated=0
+	errors=0
 	
 	
+	if (PATHS['chatsounds']!='' and os.path.exists(PATHS['chatsounds'])): # use local
+		printh('update','using local!')
+		
+		lists_path = os.path.join(PATHS['chatsounds'],'lua','chatsounds')
+		if not os.path.isdir(lists_path):
+			warn('chatsounds path does not exist!')
+			return False
+		
+		lists = findFiles(os.path.join(lists_path,'lists_nosend'))+findFiles(os.path.join(lists_path,'lists_send'))
+		
+		hashs={}
+		for filename in lists:
+			with open(filename,'rb') as file:
+				data = file.read()
+				
+				hash = hashlib.sha1(data).hexdigest()
+				file_path = os.path.join(LISTS_DIR,hash)
+				
+				hashs[hash] = file_path
+				
+				
+				if os.path.exists(file_path):
+					uptodate+=1
+				else:
+					good = listToFile(data,file_path)
+					if not good:
+						warn('not good: '+filename)
+						errors+=1
+					else:
+						updated+=1
+		
+		for filename in os.listdir(LISTS_DIR):
+			if filename not in hashs:
+				os.remove(os.path.join(LISTS_DIR,filename))
+				deleted+=1
+	
+	
+	
+	else: # use remote
+		printh('update','using remote!')
+		
+		info('Finding lists')
+		try:
+			lists = downloadLists('lists_send') # because assuming no local chatsounds
+			# merge(downloadLists('lists_nosend'),downloadLists('lists_send'))
+		except (urllib2.URLError, urllib2.HTTPError), e:
+			warn('could not get lists!')
+			return False
+		
+		for filename in os.listdir(LISTS_DIR):
+			if filename not in lists:
+				os.remove(os.path.join(LISTS_DIR,filename))
+				deleted+=1
+		
+		info('Downloading lists')
+		for hash,url in lists.iteritems():
+			filename = os.path.join(LISTS_DIR,hash)
+			if os.path.exists(filename):
+				uptodate+=1
+				continue
+			
+			try:
+				with http(url) as web:
+					data = web.read()
+			except (urllib2.URLError, urllib2.HTTPError), e:
+				warn('{} failed ({})'.format(url,e))
+				errors+=1
+			
+			good = listToFile(data,filename) # not really original file hash, but whatever
+			if not good:
+				warn('not good: '+url)
+				errors+=1
+			else:
+				updated+=1
+	
+	
+	
+	info('{} uptodate'.format(uptodate))
+	warn('{} deleted'.format(deleted))
+	success('{} updated'.format(updated))
+	if errors>0:
+		warn('{} ERRORS!'.format(UNDERLINE+str(errors)))
+	
+	return True
 
 
+def load():
+	
+	if _exists('BASS_Init'):
+		if BASS_Init(-1, 44100, 0, 0, 0):
+			success("BASS loaded!")
+		else:
+			warn("BASS COULD NOT BE LOADED! ({})".format(get_error_description(BASS_ErrorGetCode())))
+	else:
+		warn("BASS COULD NOT BE LOADED! ({})".format("library missing"))
+	
+	
+	if _exists('lua'):
+		loadLists()
 
 
 
@@ -385,82 +495,76 @@ def command_callback(word, word_eol, userdata):
 		
 		
 		return hexchat.EAT_ALL
-	elif name=='downloadlists': # TODO add a 'slow' and 'quick' mode where slow=use timer fast=freeze window
-		
-		info('Finding lists')
-		lists = downloadLists('lists_nosend') # merge(downloadLists('lists_nosend'),downloadLists('lists_send'))
-		
-		deleted=0
-		uptodate=0
-		updated=0
-		errors=0
-		
-		for filename in os.listdir(LISTS_DIR):
-			if filename not in lists:
-				os.remove(os.path.join(LISTS_DIR,filename))
-				deleted+=1
-		
-		info('Downloading lists')
-		for hash,url in lists.iteritems():
-			filename = os.path.join(LISTS_DIR,hash)
-			if os.path.exists(filename):
-				uptodate+=1
-				continue
-			
-			try:
-				with http(url) as web:
-					data = web.read()
-			except (urllib2.URLError, urllib2.HTTPError), e:
-				warn('{} failed ({})'.format(url,e))
-				errors+=1
-			
-			good = listToFile(data,filename)
-			if not good:
-				warn('not good: '+url)
-			
-			updated+=1
-		
-		
-		info('{} uptodate'.format(uptodate))
-		warn('{} deleted'.format(deleted))
-		success('{} updated'.format(updated))
-		if errors>0:
-			warn('{} ERRORS!'.format(UNDERLINE+errors))
-		
-		
-		loadLists()
-		
+	elif name=='update':
+		updateLists()
 		return hexchat.EAT_ALL
-	elif name=='parselists':
-		lists = findFiles(os.path.join(paths['chatsounds'],'lua','chatsounds','lists_nosend'))+findFiles(os.path.join(paths['chatsounds'],'lua','chatsounds','lists_send'))
-		
-		for filename in lists:
-			with open(filename,'rb') as file:
-				data = file.read()
-				
-				hash = hashlib.sha1(data).hexdigest()
-				file_path = os.path.join(LISTS_DIR,hash)
-				
-				good = listToFile(data,file_path)
-				if not good:
-					warn('not good: '+filename)
-		
-		
-		
-		
-		
-		
-		
-		return hexchat.EAT_ALL
-	elif name=='loadlists':
-		loadLists()
+	elif name=='load':
+		loadPaths()
+		load()
 		return hexchat.EAT_ALL
 	elif name=='paths':
-		mode = 'show'
-		if len(word)>2:
-			mode = word[2]
 		
-		if mode=='set': # TODO more than one path each!
+		if len(word)>2:
+			key = word[2]
+			
+			if key not in PATHS:
+				warn('{} is not a valid key in paths!'.format(key))
+				
+			else:
+				typ = type(PATHS[key])
+				
+				if typ is str:
+					# set path
+					if len(word)!=5:
+						warn('incorrect usage: {}'.format(BLUE+'/chatsounds paths {} set (path)'.format(key)))
+						return hexchat.EAT_ALL
+					mode = word[3]
+					path = word[4]
+					
+					if mode=='set':
+						PATHS[key]=path
+						
+					else:
+						warn('invalid mode!')
+						return hexchat.EAT_ALL
+					
+				elif typ is list:
+					# add path
+					# del/remove path
+					if len(word)!=5:
+						warn('incorrect usage: {}'.format(BLUE+'/chatsounds paths {} (add/del/remove) (path)'.format(key)))
+						return hexchat.EAT_ALL
+					mode = word[3]
+					path = word[4]
+					
+					if mode=='add':
+						if len(PATHS[key])==1 and PATHS[key][0]=='':
+							PATHS[key][0] = path
+						else:
+							PATHS[key].append(path)
+						
+					elif mode=='del' or mode=='delete' or mode=='remove': # if first and only element=='' then set that element
+						if path not in PATHS[key]:
+							warn('{} is not in {}!'.format(path,key))
+							return hexchat.EAT_ALL
+						
+						PATHS[key].remove(path)
+						
+						if len(PATHS[key])==0:
+							PATHS[key].append('')
+							print'fixed'
+						
+					else:
+						warn('invalid mode!')
+						return hexchat.EAT_ALL
+				
+				
+				savePaths()
+				loadPaths()
+				
+				
+		"""
+		if mode=='set':
 			if len(word)==5:
 				
 				key = word[3]
@@ -481,23 +585,22 @@ def command_callback(word, word_eol, userdata):
 				warn('wrong syntax: {}'.format(BLUE+'/chatsounds paths set (vpk|chatsounds) path/to/folder'))
 				return hexchat.EAT_ALL
 			
+			"""
 			
 			
-			
-			
-		info('vpk: {}'.format(UNDERLINE+paths['vpk']))
-		info('chatsounds: {}'.format(UNDERLINE+paths['chatsounds']))
+		info('vpk: {}'.format('['+UNDERLINE+(', '.join(PATHS['vpk']))+CLEAR+BOLD+BLUE+']'))
+		info('chatsounds: {}'.format(UNDERLINE+PATHS['chatsounds']))
 		
 		return hexchat.EAT_ALL
 	
 	
 	try:
-		list = Lists[name]
+		_list = Lists[name]
 	except KeyError:
 		warn('{} not found in list'.format(name))
 		return hexchat.EAT_ALL
 	
-	item = randomSound(list)
+	item = randomSound(_list)
 	
 	playSound(item['path']) # ,item['length'])
 	
@@ -517,23 +620,7 @@ def unload_callback(userdata):
 	
 hexchat.hook_unload(unload_callback)
 
-
 loadPaths()
-
-
-if _exists('BASS_Init'):
-	if BASS_Init(-1, 44100, 0, 0, 0):
-		success("BASS loaded!")
-	else:
-		warn("BASS COULD NOT BE LOADED! ({})".format(get_error_description(BASS_ErrorGetCode())))
-else:
-	warn("BASS COULD NOT BE LOADED! ({})".format("library missing"))
-
-
-
-if _exists('lua'):
-	loadLists()
-
 
 print('%s version %s loaded.' % (__module_name__,__module_version__))
 
