@@ -562,7 +562,7 @@ def command_callback(word, word_eol, userdata):
 	elif name=='load':
 		load()
 		return hexchat.EAT_ALL
-	elif name=='paths':
+	elif name=='paths' or name=='path':
 		
 		if len(word)>2:
 			key = word[2]
