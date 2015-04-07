@@ -547,6 +547,18 @@ def load():
 	
 
 def command_callback(word, word_eol, userdata):
+	if len(word)==1: # /chatsounds
+		
+		# TODO clean this up
+		print('setup missing libraries: ' + BLUE + '/chatsounds setup')
+		print('edit config options: ' + BLUE + '/chatsounds config [key] [value]')
+		print('edit paths: ' + BLUE + '/chatsounds paths [key] [mode] [value]')
+		print('update lists: ' + BLUE + '/chatsounds update')
+		print('load: ' + BLUE + '/chatsounds load')
+		
+		
+		return hexchat.EAT_ALL
+	
 	
 	name = word[1]
 	
@@ -563,7 +575,7 @@ def command_callback(word, word_eol, userdata):
 		setupBass(force)
 
 		
-		success("Setup complete! Reload the plugin: "+BLUE+"/reload chatsounds.py")
+		success("Setup complete! Reload the plugin: " + BLUE + "/reload chatsounds.py")
 		
 		
 		return hexchat.EAT_ALL
