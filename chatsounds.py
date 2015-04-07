@@ -235,13 +235,32 @@ def setupSlpp(force=False):
 
 
 
-indexes = {}
+VpkIndexes = {}
 def getVpk(path):
-	if path in indexes:
-		return indexes[path]
+	if path in VpkIndexes:
+		return VpkIndexes[path]
 	
-	indexes[path] = VpkIndex(path)
-	return indexes[path]
+	VpkIndexes[path] = VpkIndex(path)
+	return VpkIndexes[path]
+
+def findVpks():
+	for dir in PATHS['vpk']:
+		for filename in os.listdir(dir):
+			if filename.find('_dir.vpk')!=-1:
+				path = os.path.join(dir,filename)
+				
+				vpk = getVpk(path)
+				
+				good = False
+				for file in vpk.files:
+					if file[:6]=='sound/':
+						good = True
+				if not good:
+					warn(str(vpk)+' was no help!')
+					del VpkIndexes[path]
+				else:
+					success(str(vpk)+' was found useful')
+
 
 
 def downloadLists(path):
@@ -330,13 +349,32 @@ def randomSound(list):
 	return random.choice(list)
 
 channels = []
-def playSound(path):
-	print('playing {}'.format(path))
+def playSound(_path):
+	_path = 'sound/'+_path
 	
+	print('playing {}'.format(_path))
 	
-	path = os.path.join(PATHS['chatsounds'],'sound',goodpath(path))
-	print(path)
-	chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
+	chan = None
+	
+	path = os.path.join(PATHS['chatsounds'],goodpath(_path))
+	if os.path.exists(path): # chatsounds
+		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
+	else: # try vpk search
+		
+		for _,vpk in VpkIndexes.iteritems():
+			if _path in vpk.files:
+				file = vpk.files[_path]
+				
+				data = file.getData()
+				chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
+				del data
+				
+				break
+	
+	if chan is None:
+		warn('{} file not found'.format(_path))
+		return False
+	
 	if not chan:
 		warn('BASS Error ({})'.format(get_error_description(BASS_ErrorGetCode())))
 		return False
@@ -344,21 +382,10 @@ def playSound(path):
 	channels.append(chan)
 	BASS_ChannelPlay(chan, False)
 	
-	
-	
-	"""
-	get path from lists
-	check chatsounds if ^chatsounds/... (or check if path exists?)
-		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
-	else vpks
-		data = f.getData()
-		chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
-	
-	channels.append(chan)
-	
-	BASS_ChannelPlay(chan, False)
-	"""
-	
+	return True
+
+
+
 
 def updateLists():
 	
@@ -467,6 +494,9 @@ def load():
 	
 	if _exists('lua'):
 		loadLists()
+	
+	
+	findVpks()
 
 
 
