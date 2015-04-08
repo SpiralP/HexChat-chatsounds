@@ -348,13 +348,7 @@ def listToFile(data,filename):
 	
 	#encoded = lua.encode(decoded) # TODO don't use this format for saving them!!!
 	with open(filename,'wb') as file:
-		try:
-			json.dump(decoded,file)
-		except UnicodeDecodeError, e:
-			print(decoded)
-			print(e)
-			raise BaseException
-			return False
+		json.dump(decoded,file,False,True,True,True,None,None,None,'ISO-8859-2') # hax
 	
 	return True
 
