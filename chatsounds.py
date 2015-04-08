@@ -398,7 +398,6 @@ def updateLists():
 				if os.path.exists(file_path):
 					uptodate+=1
 				else:
-					print(filename)
 					good = listToFile(data,file_path)
 					if not good:
 						warn('not good: '+filename)
