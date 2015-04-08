@@ -11,6 +11,7 @@ import hashlib
 
 import hexchat
 
+COMMAND_NAME = '/'+__module_name__
 
 HEXCHAT_CONFIG_DIR=hexchat.get_info('configdir')
 HEXCHAT_ADDONS_DIR=os.path.join(HEXCHAT_CONFIG_DIR,'addons')
@@ -67,6 +68,9 @@ def warn(msg):
 	hexchat.prnt(BOLD + RED + msg)
 def printh(h,msg):
 	hexchat.prnt('['+GREEN+h+CLEAR+'] ' + BLUE + msg)
+
+def space(what,n):
+	return what+' '*(n-len(what))
 
 def _exists(name):
 	return name in globals()
@@ -182,7 +186,7 @@ def setupBass(force=False):
 	else: # all others
 		x64 = platform.architecture()[0]=='64bit'
 	
-	msg("Looks like you {} using a 64 bit python!".format(UNDERLINE+(x64 and 'are' or 'are NOT')+CLEAR+BLUE))
+	msg("Looks like you {} using a 64 bit python".format(UNDERLINE+(x64 and 'are' or 'are not')+CLEAR+BLUE))
 	
 	
 	archive_path = os.path.join(CONFIG_DIR,'bass.zip')
@@ -285,7 +289,7 @@ def saveConfig():
 	with open(CONFIG_FILE,'wb') as file:
 		file.write(lua.encode(CONFIG))
 
-def loadConfig(): # TODO say if path not found!
+def loadConfig():
 	global CONFIG, PATHS
 	try:
 		with open(CONFIG_FILE,'rb') as file:
@@ -549,32 +553,26 @@ def load():
 	return
 
 
+CMDINFO = {}
+def cmdinfo(what,_usage):
+	def decorator(f):
+		usage = ('{} {}{}').format(COMMAND_NAME,f.__name__,(_usage and _usage!='') and (' '+_usage) or '')
+		CMDINFO[f.__name__] = {
+			"what": what,
+			"usage": usage,
+		}
+		def new(a,b):
+			f(a,b,what,usage)
+		return new
+	return decorator
 
-	
-
-def command_callback(word, word_eol, userdata):
-	if len(word)==1: # /chatsounds
-		
-		# TODO clean this up
-		print('setup missing libraries: ' + BLUE + '/chatsounds setup')
-		print('edit config options: ' + BLUE + '/chatsounds config [key] [value]')
-		print('edit paths: ' + BLUE + '/chatsounds paths [key] [mode] [value]')
-		print('update lists: ' + BLUE + '/chatsounds update')
-		print('load: ' + BLUE + '/chatsounds load')
-		print('unload: ' + BLUE + '/chatsounds unload')
-		
-		
-		return hexchat.EAT_ALL
-	
-	
-	name = word[1]
-	
-	
-	if name=='setup':
+class cmds():
+	@staticmethod
+	@cmdinfo("download missing libraries","(force)")
+	def setup(args, args_eol, what, usage):
 		force = False
-		if len(word)==3:
-			force=word[2]=='force'
-		
+		if len(args)==1:
+			force=args[0]=='force'
 		
 		setupSlpp(force)
 		setupVpkReader(force)
@@ -582,23 +580,32 @@ def command_callback(word, word_eol, userdata):
 		setupBass(force)
 
 		
-		success("Setup complete! Reload the plugin: " + BLUE + "/reload chatsounds.py")
-		
-		
-		return hexchat.EAT_ALL
-	elif name=='update':
+		success("Setup complete! Reload the plugin: " + BLUE + "/reload "+__module_name__+".py")
+		return
+	
+	@staticmethod
+	@cmdinfo("update local lists","")
+	def update(args, args_eol, what, usage):
 		updateLists()
-		return hexchat.EAT_ALL
-	elif name=='load':
+		return
+	
+	@staticmethod
+	@cmdinfo("load plugin","")
+	def load(args, args_eol, what, usage):
 		load()
-		return hexchat.EAT_ALL
-	elif name=='unload':
+		return
+	
+	@staticmethod
+	@cmdinfo("unload plugin","")
+	def unload(args, args_eol, what, usage):
 		unload_callback(None)
-		return hexchat.EAT_ALL
-	elif name=='paths' or name=='path':
-		
-		if len(word)>2:
-			key = word[2]
+		return
+	
+	@staticmethod
+	@cmdinfo("edit paths to files","") # TODO usage # TODO merge with config
+	def paths(args, args_eol, what, usage):
+		if len(args)>1:
+			key = args[0]
 			
 			if key not in PATHS:
 				warn('{} is not a valid key in paths!'.format(key))
@@ -607,12 +614,11 @@ def command_callback(word, word_eol, userdata):
 				typ = type(PATHS[key])
 				
 				if typ is str:
-					# set path
-					if len(word)!=5:
+					if len(args)!=3:
 						warn('incorrect usage: {}'.format(BLUE+'/chatsounds paths {} set (path)'.format(key)))
 						return hexchat.EAT_ALL
-					mode = word[3]
-					path = word[4]
+					mode = args[1]
+					path = args[2]
 					
 					if mode=='set':
 						PATHS[key]=path
@@ -624,13 +630,11 @@ def command_callback(word, word_eol, userdata):
 						return hexchat.EAT_ALL
 					
 				elif typ is list:
-					# add path
-					# del/remove path
-					if len(word)!=5:
+					if len(args)!=3:
 						warn('incorrect usage: {}'.format(BLUE+'/chatsounds paths {} (add/del/remove) (path)'.format(key)))
 						return hexchat.EAT_ALL
-					mode = word[3]
-					path = word[4]
+					mode = args[1]
+					path = args[2]
 					
 					if mode=='add':
 						if len(PATHS[key])==1 and PATHS[key][0]=='':
@@ -665,28 +669,33 @@ def command_callback(word, word_eol, userdata):
 		info('chatsounds: {}'.format(UNDERLINE+PATHS['chatsounds']))
 		# TODO maybe add red/green colored paths for good/bad
 		
-		return hexchat.EAT_ALL
-	elif name=='config':
-		if len(word)==2: # chatsounds config
+		return
+	path = paths
+	
+	@staticmethod
+	@cmdinfo("edit config options","(key) (value)")
+	def config(args, args_eol, what, usage):
+		
+		if len(args)==0:
 			
 			for k,v in CONFIG.iteritems():
 				if type(v) is list or type(v) is dict: continue
 				print('{} = {}'.format(BLUE+str(k)+CLEAR,BLUE+str(v)+CLEAR))
 			
 			
-			return hexchat.EAT_ALL
+			return
 		
 		
-		if len(word)!=4:
-			warn('incorrect usage: {}'.format(BLUE+'/chatsounds config (key) (value)'))
-			return hexchat.EAT_ALL
+		if len(args)!=2:
+			warn('incorrect usage: {}'.format(BLUE+usage))
+			return
 		
-		key = word[2]
+		key = args[0]
 		if not key in CONFIG:
 			warn('{} not found in config!'.format(key))
-			return hexchat.EAT_ALL
+			return
 		
-		value = word[3]
+		value = args[1]
 		
 		
 		
@@ -709,11 +718,32 @@ def command_callback(word, word_eol, userdata):
 		
 		info('CONFIG.{}: {} -> {}'.format(key,oldvalue,CONFIG[key]))
 		
-		
-		
 		saveConfig()
 		
+		return
+	
+	
+
+def command_callback(word, word_eol, userdata):
+	if len(word)==1: # /chatsounds
+		
+		for name,cmd in CMDINFO.iteritems():
+			print(space(cmd['what'],30)+BLUE+cmd['usage'])
+		
 		return hexchat.EAT_ALL
+	
+	
+	
+	name = word[1]
+	
+	if name in CMDINFO:
+		cmd = getattr(cmds,name,None)
+		if cmd is not None:
+			word.pop(0)
+			word.pop(0)
+			
+			cmd(word,word_eol)
+			return hexchat.EAT_ALL
 	
 	
 	
@@ -721,7 +751,7 @@ def command_callback(word, word_eol, userdata):
 	
 	
 	return hexchat.EAT_ALL
-hexchat.hook_command('chatsounds',command_callback)
+hexchat.hook_command(__module_name__,command_callback)
 
 
 def message_callback(word, word_eol, userdata):
