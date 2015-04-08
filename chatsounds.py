@@ -345,10 +345,16 @@ def listToFile(data,filename):
 	data = re.sub('L\["',					'["',	data)
 	
 	decoded = lua.decode(data)
-	encoded = lua.encode(decoded) # TODO don't use this format for saving them!!!
 	
+	#encoded = lua.encode(decoded) # TODO don't use this format for saving them!!!
 	with open(filename,'wb') as file:
-		file.write(encoded)
+		try:
+			json.dump(decoded,file)
+		except UnicodeDecodeError, e:
+			print(decoded)
+			print(e)
+			raise BaseException
+			return False
 	
 	return True
 
@@ -399,6 +405,7 @@ def updateLists():
 				if os.path.exists(file_path):
 					uptodate+=1
 				else:
+					print(filename)
 					good = listToFile(data,file_path)
 					if not good:
 						warn('not good: '+filename)
