@@ -319,9 +319,9 @@ Lists = {}
 def loadLists():
 	for filename in os.listdir(LISTS_DIR):
 		with open(os.path.join(LISTS_DIR,filename),'rb') as file:
-			data = file.read()
+			decoded = json.load(file)
 		
-		decoded = lua.decode(data)
+		
 		try:
 			for name,paths in decoded.iteritems():
 				for item in paths:
@@ -346,7 +346,6 @@ def listToFile(data,filename):
 	
 	decoded = lua.decode(data)
 	
-	#encoded = lua.encode(decoded) # TODO don't use this format for saving them!!!
 	with open(filename,'wb') as file:
 		json.dump(decoded,file,False,True,True,True,None,None,None,'ISO-8859-2') # hax
 	
