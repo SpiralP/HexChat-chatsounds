@@ -479,14 +479,14 @@ def playSound(_path):
 	
 	path = os.path.join(PATHS['chatsounds'],goodpath(_path))
 	if os.path.exists(path): # chatsounds
-		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
+		chan = BASS_StreamCreateFile(False, path, 0, 0, 0) # TODO sometimes can't open file, why?
 	else: # try vpk search
 		
 		for _,vpk in VpkIndexes.iteritems():
 			if _path in vpk.files:
 				file = vpk.files[_path]
 				
-				data = file.getData()
+				data = file.getData() # TODO cache?
 				chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
 				del data
 				

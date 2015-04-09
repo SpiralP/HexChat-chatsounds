@@ -98,6 +98,7 @@ class VpkFile():
 	offset = -1
 	length = -1
 	preload = bytes()
+	data = None
 	
 	def __init__(self, path):
 		self.path = path
@@ -107,16 +108,19 @@ class VpkFile():
 	
 	
 	def getData(self):
-		data = self.preload
+		if self.data is not None:
+			print(self,'using cached')
+			return self.data
+		
+		self.data = self.preload
 		
 		vpk = open(self.archive_path,'rb')
 		
 		vpk.seek(self.offset)
-		data += vpk.read(self.length)
+		self.data += vpk.read(self.length)
 		
 		vpk.close()
 		
-		
-		return data
+		return self.data
 	
 
