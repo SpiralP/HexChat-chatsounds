@@ -263,7 +263,7 @@ def getVpk(path):
 	VpkIndexes[path] = VpkIndex(path)
 	return VpkIndexes[path]
 
-def findVpks():
+def findVpks(): # TODO only want steam dir and search for games
 	for dir in PATHS['vpk']:
 		if dir=='':
 			continue
@@ -469,13 +469,12 @@ def updateLists():
 
 
 channels = []
-def playSound(_path):
+def playSound(_path,mod_volume=0,mod_pitch=1):
 	_path = 'sound/'+_path
 	
 	print('playing {}'.format(_path))
 	
 	chan = None
-	mod_volume = 0
 	
 	path = os.path.join(PATHS['chatsounds'],goodpath(_path))
 	if os.path.exists(path): # chatsounds
@@ -502,6 +501,7 @@ def playSound(_path):
 	
 	channels.append(chan)
 	BASS_ChannelSetAttribute(chan,BASS_ATTRIB_VOL,CONFIG['volume']+mod_volume)
+	# TODO pitch
 	BASS_ChannelPlay(chan, False)
 	
 	return True
