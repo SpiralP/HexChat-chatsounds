@@ -336,7 +336,7 @@ def loadLists():
 		except TypeError, e:
 			warn('error loading list: {} ({})'.format(filename,e))
 	
-	info('Took {} seconds!'.format(time.time()-start_time))
+	info('Took {0:.2f} seconds!'.format(time.time()-start_time))
 	return
 
 def listToFile(data,filename):
@@ -462,7 +462,7 @@ def updateLists():
 	if errors>0:
 		warn('{} ERRORS!'.format(UNDERLINE+str(errors)))
 	
-	info('Took {} seconds!'.format(time.time()-start_time))
+	info('Took {0:.2f} seconds!'.format(time.time()-start_time))
 	
 	return True
 
