@@ -8,6 +8,7 @@ import urllib2, json
 import re
 import random
 import hashlib
+import time
 
 import hexchat
 
@@ -317,6 +318,8 @@ def loadConfig():
 
 Lists = {}
 def loadLists():
+	start_time = time.time()
+	
 	for filename in os.listdir(LISTS_DIR):
 		with open(os.path.join(LISTS_DIR,filename),'rb') as file:
 			decoded = json.load(file)
@@ -333,6 +336,7 @@ def loadLists():
 		except TypeError, e:
 			warn('error loading list: {} ({})'.format(filename,e))
 	
+	info('Took {} seconds!'.format(time.time()-start_time))
 	return
 
 def listToFile(data,filename):
@@ -367,6 +371,7 @@ def downloadLists(path):
 	return links
 
 def updateLists():
+	start_time = time.time()
 	
 	deleted=0
 	uptodate=0
@@ -456,6 +461,8 @@ def updateLists():
 	success('{} updated'.format(updated))
 	if errors>0:
 		warn('{} ERRORS!'.format(UNDERLINE+str(errors)))
+	
+	info('Took {} seconds!'.format(time.time()-start_time))
 	
 	return True
 
