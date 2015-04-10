@@ -79,7 +79,7 @@ class VpkIndex():
 					get_int2(self.file)
 					
 					if preload_bytes:
-						cur_file.preload = file.read(prelaod_bytes)
+						cur_file.preload = file.read(preload_bytes)
 		
 		self.close()
 		
