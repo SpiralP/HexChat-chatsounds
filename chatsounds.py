@@ -485,7 +485,7 @@ def playSound(_path,mod_volume=0,mod_pitch=1):
 			if _path in vpk.files:
 				file = vpk.files[_path]
 				
-				data = file.getData() # TODO cache?
+				data = file.getData()
 				chan = BASS_StreamCreateFile(True, data, 0, len(data), 0)
 				del data
 				
@@ -562,7 +562,12 @@ def load():
 CMDINFO = {}
 def cmdinfo(what,_usage):
 	def decorator(f):
-		usage = ('{} {}{}').format(COMMAND_NAME,f.__name__,(_usage and _usage!='') and (' '+_usage) or '')
+		if type(_usage) is tuple:
+			usage = []
+			for u in _usage:
+				usage.append( ('{} {}{}').format(COMMAND_NAME,f.__name__,(u and u!='') and (' '+u) or '') )
+		else:
+			usage = ('{} {}{}').format(COMMAND_NAME,f.__name__,(_usage and _usage!='') and (' '+_usage) or '')
 		CMDINFO[f.__name__] = {
 			"what": what,
 			"usage": usage,
@@ -608,7 +613,7 @@ class cmds():
 		return
 	
 	@staticmethod
-	@cmdinfo("edit paths to files","") # TODO usage # TODO merge with config
+	@cmdinfo("edit paths to files",("{} set (path)","{} (add/del/remove) (path)")) # TODO merge with config?
 	def paths(args, args_eol, what, usage):
 		if len(args)>1:
 			key = args[0]
@@ -621,7 +626,7 @@ class cmds():
 				
 				if typ is str:
 					if len(args)!=3:
-						warn('incorrect usage: {}'.format(BLUE+'/chatsounds paths {} set (path)'.format(key)))
+						warn('incorrect usage: {}'.format(BLUE+usage[0].format(key)))
 						return hexchat.EAT_ALL
 					mode = args[1]
 					path = args[2]
@@ -632,12 +637,12 @@ class cmds():
 							success('{} is a valid folder!'.format(path))
 						
 					else:
-						warn('invalid mode!')
+						warn('invalid mode: {}'.format(BLUE+usage[0].format(key)))
 						return hexchat.EAT_ALL
 					
 				elif typ is list:
 					if len(args)!=3:
-						warn('incorrect usage: {}'.format(BLUE+'/chatsounds paths {} (add/del/remove) (path)'.format(key)))
+						warn('incorrect usage: {}'.format(BLUE+usage[1].format(key)))
 						return hexchat.EAT_ALL
 					mode = args[1]
 					path = args[2]
@@ -663,7 +668,7 @@ class cmds():
 							print'fixed'
 						
 					else:
-						warn('invalid mode!')
+						warn('invalid mode: {}'.format(BLUE+usage[1].format(key)))
 						return hexchat.EAT_ALL
 				
 				
