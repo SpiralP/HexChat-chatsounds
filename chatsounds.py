@@ -533,7 +533,7 @@ def chatsound(name):
 	
 	return playSound(item['path']) # ,item['length'])
 
-def autocomplete(name):
+def autocomplete(name): # TODO tab cycle through sounds
 	
 	l = len(name)
 	for k,v in Lists.iteritems():
