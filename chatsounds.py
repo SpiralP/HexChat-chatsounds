@@ -19,7 +19,7 @@ HEXCHAT_ADDONS_DIR=os.path.join(HEXCHAT_CONFIG_DIR,'addons')
 
 CONFIG_DIR=os.path.join(HEXCHAT_CONFIG_DIR, 'chatsounds')
 LISTS_DIR=os.path.join(CONFIG_DIR,'lists')
-CONFIG_FILE=os.path.join(CONFIG_DIR,'config.lua')
+CONFIG_FILE=os.path.join(CONFIG_DIR,'config.json')
 
 if not os.path.exists(LISTS_DIR):
 	os.makedirs(LISTS_DIR)
@@ -291,20 +291,27 @@ def findVpks(): # TODO only want steam dir and search for games # TODO this need
 
 def saveConfig():
 	with open(CONFIG_FILE,'wb') as file:
-		file.write(lua.encode(CONFIG))
+		json.dump(CONFIG,file,indent=4,separators=(',',':')) # 4 spaces indenting
 
 def loadConfig():
 	global CONFIG, PATHS
+	needsave = False
 	try:
 		with open(CONFIG_FILE,'rb') as file:
 			old = CONFIG
-			CONFIG = lua.decode(file.read())
+			CONFIG = json.load(file)
+			
 			for k,v in old.iteritems():
 				if k not in CONFIG:
-					info('Adding new key "{}" to config'.format(k)) # TODO save after this
+					needsave = True
+					info('Adding new key "{}" to config'.format(k))
 					CONFIG[k] = v
 	except IOError, e:
+		needsave = True
 		pass
+	
+	if needsave:
+		saveConfig()
 	
 	PATHS = CONFIG['paths']
 	for key,value in PATHS.iteritems():
@@ -355,7 +362,7 @@ def listToFile(data,filename):
 	decoded = lua.decode(data)
 	
 	with open(filename,'wb') as file:
-		json.dump(decoded,file,False,True,True,True,None,None,None,'ISO-8859-2') # hax
+		json.dump(decoded,file,encoding='ISO-8859-2') # hax
 	
 	return True
 
