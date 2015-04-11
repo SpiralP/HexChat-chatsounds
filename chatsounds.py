@@ -1,6 +1,6 @@
 __module_name__ = 'chatsounds'
 __module_author__ = 'SpiralP'
-__module_version__ = '1'
+__module_version__ = '1.2'
 __module_description__ = 'chatsounds'
 
 import os, sys
@@ -44,13 +44,14 @@ PATHS = {
 	"chatsounds": "",	# path to chatsounds local repo
 }
 CONFIG = {
+	"enabled": True,
 	"paths": PATHS,
 	"ignore": [],		# ignore list
 	"focusOnly": True,	# only play sounds when window is on top
 	"volume": 0.1,		# volume
 }
 
-ENABLED = False
+LOADED = False
 
 
 CLEAR='\017'
@@ -263,7 +264,8 @@ def getVpk(path):
 	VpkIndexes[path] = VpkIndex(path)
 	return VpkIndexes[path]
 
-def findVpks(): # TODO only want steam dir and search for games
+def findVpks(): # TODO only want steam dir and search for games # TODO this needs to speed up some how
+	start_time = time.time()
 	for dir in PATHS['vpk']:
 		if dir=='':
 			continue
@@ -282,6 +284,7 @@ def findVpks(): # TODO only want steam dir and search for games
 					del VpkIndexes[path]
 				else:
 					success(str(vpk)+' was found useful')
+	info('Took {0:.2f} seconds!'.format(time.time()-start_time))
 	return
 
 
@@ -298,6 +301,7 @@ def loadConfig():
 			CONFIG = lua.decode(file.read())
 			for k,v in old.iteritems():
 				if k not in CONFIG:
+					info('Adding new key "{}" to config'.format(k)) # TODO save after this
 					CONFIG[k] = v
 	except IOError, e:
 		pass
@@ -477,8 +481,9 @@ def playSound(_path,mod_volume=0,mod_pitch=1):
 	chan = None
 	
 	path = os.path.join(PATHS['chatsounds'],goodpath(_path))
+	path = str(path) # BECAUSE UNICODE
 	if os.path.exists(path): # chatsounds
-		chan = BASS_StreamCreateFile(False, path, 0, 0, 0) # TODO sometimes can't open file, why?
+		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
 	else: # try vpk search
 		
 		for _,vpk in VpkIndexes.iteritems():
@@ -528,13 +533,29 @@ def chatsound(name):
 	
 	return playSound(item['path']) # ,item['length'])
 
-
+def autocomplete(name):
+	
+	l = len(name)
+	for k,v in Lists.iteritems():
+		if len(k)<l:
+			continue
+		
+		if k[:l]==name:
+			return k
+		
+		
+		
+		
+	
+	
+	
+	return False
 
 
 
 def load():
 	
-	unload_callback(None) # hacks
+	unload_callback(True) # hacks
 	
 	loadConfig()
 	
@@ -548,13 +569,15 @@ def load():
 	
 	
 	if _exists('lua'):
+		info('Loading lists')
 		loadLists()
 	
 	
+	info('Finding VPKs')
 	findVpks()
 	
-	global ENABLED
-	ENABLED = True
+	global LOADED
+	LOADED = True
 	
 	return
 
@@ -766,15 +789,15 @@ hexchat.hook_command(__module_name__,command_callback)
 
 
 def message_callback(word, word_eol, userdata):
-	if not ENABLED:
-		return
+	if not LOADED or not CONFIG['enabled']:
+		return hexchat.EAT_NONE
 	
 	who = word[0]
 	msg = word[1]
 	
 	chan = getChannel()
 	
-	if who in CONFIG['ignore']: # block them!!!!
+	if who in CONFIG['ignore']: # TODO block them!!!!
 		return
 	
 	if CONFIG['focusOnly'] and not hexchat.get_info('win_status')=='active':
@@ -786,23 +809,46 @@ def message_callback(word, word_eol, userdata):
 	
 	
 	
-	return
+	return hexchat.EAT_NONE
 hexchat.hook_print('Private Message to Dialog',message_callback)
 hexchat.hook_print('Private Message',message_callback)
 hexchat.hook_print('Your Message',message_callback)
 
-
-
-def unload_callback(userdata):
-	info('Unloading {}'.format(__module_name__))
+def keypress_callback(word, word_eol, userdata): # TODO tab completion
+	if not LOADED or not CONFIG['enabled']:
+		return hexchat.EAT_NONE
 	
-	global ENABLED
-	ENABLED = False
+	
+	key = word[0]
+	# alt = word[1]
+	# letter = word[2]
+	
+	
+	if key=='65289': # tab key
+		old = hexchat.get_info('inputbox')
+		ac = autocomplete(old)
+		
+		if ac is not False:
+			hexchat.command('settext {}'.format(ac)) # TODO fix cursor going to beginning of line
+			
+		
+		return hexchat.EAT_ALL
+	
+	return hexchat.EAT_NONE
+hexchat.hook_print('Key Press',keypress_callback)
+
+def unload_callback(silent):
+	if not silent:
+		info('Unloading {}'.format(__module_name__))
+	
+	LOADED = False
 	
 	if _exists('BASS_Free'):
 		BASS_Free()
 	else:
-		warn("BASS doesn't exist to unload!")
+		info("BASS doesn't exist to unload!")
+	
+	return
 hexchat.hook_unload(unload_callback)
 
 if _exists('lua'):
