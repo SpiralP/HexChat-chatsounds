@@ -842,7 +842,7 @@ hexchat.hook_print('Private Message to Dialog',message_callback)
 hexchat.hook_print('Private Message',message_callback)
 hexchat.hook_print('Your Message',message_callback)
 
-def keypress_callback(word, word_eol, userdata):
+def keypress_callback(word, word_eol, userdata): # TODO allow autocomplete names too still
 	if not LOADED or not CONFIG['enabled']:
 		return hexchat.EAT_NONE
 	
@@ -854,6 +854,9 @@ def keypress_callback(word, word_eol, userdata):
 	
 	if key=='65289': # tab key
 		old = hexchat.get_info('inputbox')
+		if old[0]=='/':
+			return
+		
 		ac = autocomplete(old)
 		
 		if ac is not False:
