@@ -483,12 +483,11 @@ channels = []
 def playSound(_path,mod_volume=0,mod_pitch=1):
 	_path = 'sound/'+_path
 	
-	print('playing {}'.format(_path))
-	
 	chan = None
 	
 	path = os.path.join(PATHS['chatsounds'],goodpath(_path))
 	path = str(path) # BECAUSE UNICODE
+	
 	if os.path.exists(path): # chatsounds
 		chan = BASS_StreamCreateFile(False, path, 0, 0, 0)
 	else: # try vpk search
@@ -608,6 +607,23 @@ def cmdinfo(what,_usage):
 	return decorator
 
 class cmds():
+	@staticmethod
+	@cmdinfo("enable chatsounds","")
+	def enable(args, args_eol, what, usage):
+		global ENABLED
+		ENABLED = True
+		info('enabled')
+	on=enable
+	
+	@staticmethod
+	@cmdinfo("disable chatsounds","")
+	def disable(args, args_eol, what, usage):
+		global ENABLED
+		ENABLED = False
+		info('disabled')
+	off=disable
+	
+	
 	@staticmethod
 	@cmdinfo("download missing libraries","(force)")
 	def setup(args, args_eol, what, usage):
@@ -769,7 +785,12 @@ def command_callback(word, word_eol, userdata):
 	if len(word)==1: # /chatsounds
 		
 		for name,cmd in CMDINFO.iteritems():
-			print(space(cmd['what'],30)+BLUE+cmd['usage'])
+			usage = cmd['usage']
+			if type(usage) is list:
+				for usages in usage:
+					print(space(cmd['what'],30)+BLUE+usages)
+			else:
+				print(space(cmd['what'],30)+BLUE+cmd['usage'])
 		
 		return hexchat.EAT_ALL
 	
@@ -777,9 +798,9 @@ def command_callback(word, word_eol, userdata):
 	
 	name = word[1]
 	
-	if name in CMDINFO:
-		cmd = getattr(cmds,name,None)
-		if cmd is not None:
+	if name[0]!='_' and name in dir(cmds):
+		cmd = getattr(cmds,name,False)
+		if cmd:
 			word.pop(0)
 			word.pop(0)
 			
@@ -821,7 +842,7 @@ hexchat.hook_print('Private Message to Dialog',message_callback)
 hexchat.hook_print('Private Message',message_callback)
 hexchat.hook_print('Your Message',message_callback)
 
-def keypress_callback(word, word_eol, userdata): # TODO tab completion
+def keypress_callback(word, word_eol, userdata):
 	if not LOADED or not CONFIG['enabled']:
 		return hexchat.EAT_NONE
 	
