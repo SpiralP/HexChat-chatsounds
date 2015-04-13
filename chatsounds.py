@@ -861,9 +861,7 @@ def keypress_callback(word, word_eol, userdata): # TODO allow autocomplete names
 		
 		if ac is not False:
 			hexchat.command('settext {}'.format(ac)) # TODO fix cursor going to beginning of line
-			
-		
-		return hexchat.EAT_ALL
+			return hexchat.EAT_ALL
 	
 	return hexchat.EAT_NONE
 hexchat.hook_print('Key Press',keypress_callback)
