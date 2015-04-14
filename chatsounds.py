@@ -729,8 +729,8 @@ class cmds():
 				loadConfig()
 		
 		
-		info('vpk: {}'.format('['+UNDERLINE+(', '.join(PATHS['vpk']))+CLEAR+BOLD+BLUE+']'))
-		info('chatsounds: {}'.format(UNDERLINE+PATHS['chatsounds']))
+		info('vpk: [{}]'.format((', '.join( colorPath(PATHS['vpk']) ))+CLEAR+BOLD+BLUE))
+		info('chatsounds: {}'.format(colorPath(PATHS['chatsounds'])))
 		# TODO maybe add red/green colored paths for good/bad
 		
 		return
