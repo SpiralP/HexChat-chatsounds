@@ -82,6 +82,25 @@ def merge(a,b):
 	c.update(b)
 	return c
 
+def colorPath(path):
+	if type(path) is str:
+		if os.path.exists(path):
+			s = GREEN
+		else:
+			s = RED
+		return s+path+CLEAR
+	elif type(path) is list:
+		s = list(path)
+		for k,path in enumerate(s):
+			if os.path.exists(path):
+				s[k] = GREEN+path+CLEAR
+			else:
+				s[k] = RED+path+CLEAR
+				
+		return s
+	
+	return False
+
 def goodpath(path,join=False):
 	if not join:
 		join = []
@@ -731,7 +750,6 @@ class cmds():
 		
 		info('vpk: [{}]'.format((', '.join( colorPath(PATHS['vpk']) ))+CLEAR+BOLD+BLUE))
 		info('chatsounds: {}'.format(colorPath(PATHS['chatsounds'])))
-		# TODO maybe add red/green colored paths for good/bad
 		
 		return
 	path = paths
