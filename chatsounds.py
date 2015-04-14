@@ -480,6 +480,12 @@ def updateLists():
 
 
 channels = []
+def stopSounds():
+	for chan in channels:
+		BASS_ChannelStop(chan) # TODO many sounds playing at once don't stop
+		del channels[:]
+	return
+
 def playSound(_path,mod_volume=0,mod_pitch=1):
 	_path = 'sound/'+_path
 	
@@ -523,9 +529,7 @@ def randomSound(list):
 def chatsound(name):
 	
 	if name=='sh':
-		for chan in channels:
-			BASS_ChannelStop(chan)
-		del channels[:]
+		stopSounds()
 		return True
 	
 	
@@ -610,16 +614,19 @@ class cmds():
 	@staticmethod
 	@cmdinfo("enable chatsounds","")
 	def enable(args, args_eol, what, usage):
-		global ENABLED
-		ENABLED = True
+		if not LOADED:
+			load()
+		
+		CONFIG['enabled'] = True
+		saveConfig()
 		info('enabled')
 	on=enable
 	
 	@staticmethod
 	@cmdinfo("disable chatsounds","")
 	def disable(args, args_eol, what, usage):
-		global ENABLED
-		ENABLED = False
+		CONFIG['enabled'] = False
+		saveConfig()
 		info('disabled')
 	off=disable
 	
@@ -870,12 +877,19 @@ def unload_callback(silent):
 	if not silent:
 		info('Unloading {}'.format(__module_name__))
 	
-	LOADED = False
+	stopSounds()
 	
 	if _exists('BASS_Free'):
 		BASS_Free()
 	else:
 		info("BASS doesn't exist to unload!")
+	
+	Lists.clear()
+	VpkIndexes.clear()
+	
+	
+	global LOADED
+	LOADED = False
 	
 	return
 hexchat.hook_unload(unload_callback)
