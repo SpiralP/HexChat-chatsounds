@@ -804,7 +804,22 @@ class cmds():
 		
 		return
 	
-	
+	@staticmethod
+	@cmdinfo("ignore chatsounds from users","(name)")
+	def ignore(args, args_eol, what, usage):
+		list = CONFIG['ignore']
+		for name in args:
+			if name in list:
+				list.remove(name)
+				warn('{} was removed from the ignore list'.format(name))
+				
+			else:
+				list.append(name)
+				success('{} is now ignored'.format(name))
+		
+		return
+	block = ignore
+
 
 def command_callback(word, word_eol, userdata):
 	if len(word)==1: # /chatsounds
