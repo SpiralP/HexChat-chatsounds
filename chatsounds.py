@@ -685,7 +685,7 @@ class cmds():
 		return
 	
 	@staticmethod
-	@cmdinfo("edit paths to files",("{} set (path)","{} (add/del/remove) (path)")) # TODO merge with config?
+	@cmdinfo("edit paths to files",("{} set (path)","{} (add/del/remove) (path)"))
 	def paths(args, args_eol, what, usage):
 		if len(args)>1:
 			key = args[0]
