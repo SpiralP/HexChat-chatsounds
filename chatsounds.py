@@ -865,7 +865,7 @@ def message_callback(word, word_eol, userdata):
 	
 	chan = getChannel()
 	
-	if who in CONFIG['ignore']: # TODO block them!!!!
+	if who in CONFIG['ignore']:
 		return
 	
 	if CONFIG['focusOnly'] and not hexchat.get_info('win_status')=='active':
