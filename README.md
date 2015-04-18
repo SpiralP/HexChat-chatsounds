@@ -9,7 +9,7 @@ once set up:
   /chatsounds paths vpk add "C:\path\to\Half-Life2\hl2"
   /chatsounds paths vpk add "C:\path\to\other\vpks"
 /chatsounds update
-/chatsounds load
+/chatsounds on
 ```
 
 ## Uses
